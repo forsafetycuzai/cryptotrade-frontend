@@ -1056,6 +1056,12 @@ async function fetchHistory(coin) {
     const data = await fetch(url).then(r=>r.json())
     if (!Array.isArray(data)) return
     priceHistory[coin] = data.map(k=>({t:k[0],v:parseFloat(k[4]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4])}))
+    // sync prices กับแท่งล่าสุดจาก klines
+    if (priceHistory[coin].length > 0) {
+      const last = priceHistory[coin][priceHistory[coin].length-1]
+      prices[coin] = last.close
+      if (COINS[coin]) COINS[coin].baseUSDT = last.close
+    }
   } catch(e) {}
 }
 
