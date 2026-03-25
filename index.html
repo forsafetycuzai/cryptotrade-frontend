@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoTrade</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sarabun:wght@300;400;500;600&family=Kanit:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- ============================================================ -->
+<!--  ✅ ใส่ค่าจาก Supabase Dashboard → Settings → API ที่นี่    -->
+<!-- ============================================================ -->
+<script>
+  const SUPABASE_URL  = 'https://tatxtqtcuomnigyuarez.supabase.co'
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhdHh0cXRjdW9tbmlneXVhcmV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTMwODUsImV4cCI6MjA4ODk2OTA4NX0.-78xFNx7AAAMXgUQQHQaolJpY9b1CvbVJ_E0kjOvrzo'
+  const BACKEND_URL   = 'https://cryptotrade-backend-1.onrender.com'  // ← Backend URL (อย่าเปลี่ยนถ้ารันบนเครื่องตัวเอง)
+</script>
+<!-- ============================================================ -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070b0f;--surface:#0d1117;--surface2:#131a24;--surface3:#1a2332;
+  --border:rgba(0,255,170,0.08);--border2:rgba(0,255,170,0.15);
+  --accent:#00ffaa;--accent2:#00ccff;--red:#ff4466;--green:#00ffaa;
+  --text:#e2e8f0;--muted:#4a5568;--muted2:#718096;
+  --font-mono:'Space Mono',monospace;--font-body:'Sarabun',sans-serif;--font-head:'Kanit',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:1000}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,170,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,170,0.02) 1px,transparent 1px);background-size:32px 32px;pointer-events:none}
+
+/* PAGES */
+.page{display:none;min-height:100vh}
+.page.active{display:block}
+
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.auth-card{background:var(--surface);border:1px solid rgba(0,255,170,0.12);border-radius:20px;padding:40px;width:100%;max-width:420px;margin:20px;box-shadow:0 40px 80px rgba(0,0,0,0.5);animation:cardIn 0.5s cubic-bezier(0.16,1,0.3,1)}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.brand{text-align:center;margin-bottom:32px}
+.brand-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),#9f7aea);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px}
+.brand h1{font-family:var(--font-head);font-size:22px;font-weight:500}
+.brand p{font-size:13px;color:var(--muted2);margin-top:4px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:28px}
+.tab-btn{background:none;border:none;padding:9px;font-family:var(--font-body);font-size:14px;font-weight:500;color:var(--muted2);border-radius:7px;cursor:pointer;transition:all 0.2s}
+.tab-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4)}
+.form-panel{display:none}
+.form-panel.active{display:block;animation:fadeUp 0.3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--muted2);margin-bottom:6px}
+.input-wrap{position:relative}
+.input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;opacity:0.4}
+.toggle-pw{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:4px}
+input[type="text"],input[type="email"],input[type="password"]{width:100%;background:var(--surface2);border:1px solid rgba(0,255,170,0.08);border-radius:10px;padding:11px 14px 11px 40px;font-family:var(--font-body);font-size:14px;color:var(--text);outline:none;transition:border-color 0.2s}
+input:focus{border-color:rgba(0,255,170,0.4);box-shadow:0 0 0 3px rgba(0,255,170,0.08)}
+input::placeholder{color:var(--muted2);opacity:0.6}
+.field-error{font-size:12px;color:var(--red);margin-top:5px;display:none}
+.field-error.show{display:block}
+.pw-strength{margin-top:8px;display:none}
+.pw-strength.show{display:block}
+.strength-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.strength-fill{height:100%;border-radius:2px;transition:width 0.3s,background 0.3s;width:0%}
+.strength-label{font-size:11px;color:var(--muted2)}
+.btn-submit{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#9f7aea);border:none;border-radius:10px;font-family:var(--font-head);font-size:15px;font-weight:500;color:#070b0f;cursor:pointer;margin-top:8px;transition:opacity 0.2s,transform 0.15s;position:relative}
+.btn-submit:hover{opacity:0.9}
+.btn-submit:active{transform:scale(0.98)}
+.btn-submit.loading{pointer-events:none}
+.btn-submit .spinner{display:none;width:18px;height:18px;border:2px solid rgba(0,0,0,0.2);border-top-color:#070b0f;border-radius:50%;animation:spin 0.7s linear infinite;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.btn-submit.loading .spinner{display:block}
+.btn-submit.loading .btn-text{visibility:hidden}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.alert{padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;align-items:center;gap:8px;line-height:1.5}
+.alert.show{display:flex;animation:fadeUp 0.3s ease}
+.alert-success{background:rgba(0,255,170,0.08);border:1px solid rgba(0,255,170,0.25);color:var(--green)}
+.alert-error{background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.25);color:var(--red)}
+.forgot{text-align:right;margin-top:-8px;margin-bottom:16px}
+.forgot a{font-size:12px;color:var(--muted2);text-decoration:none}
+.forgot a:hover{color:var(--accent)}
+.confirm-screen{display:none;text-align:center;padding:20px 0}
+.confirm-screen.show{display:block;animation:fadeUp 0.4s ease}
+.confirm-icon{font-size:44px;margin-bottom:14px;display:block}
+.confirm-screen h2{font-family:var(--font-head);font-size:20px;margin-bottom:8px}
+.confirm-screen p{font-size:13px;color:var(--muted2);line-height:1.7}
+.btn-back-login{margin-top:20px;padding:10px 28px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-family:var(--font-body);font-size:14px;color:var(--text);cursor:pointer}
+
+/* MODE OVERLAY */
+.overlay{position:fixed;inset:0;z-index:2000;background:rgba(7,11,15,0.97);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+.overlay.hidden{display:none}
+.overlay-card{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:40px 36px;width:100%;max-width:440px;margin:20px;text-align:center;animation:cardIn 0.5s cubic-bezier(0.16,1,0.3,1)}
+.overlay-title{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--accent);letter-spacing:0.1em;margin-bottom:6px}
+.overlay-sub{font-size:14px;color:var(--muted2);margin-bottom:28px}
+.option-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.option-card{border-radius:14px;padding:22px 16px;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);transition:all 0.2s;text-align:center}
+.option-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.option-card.selected{border-color:var(--accent);background:rgba(0,255,170,0.06)}
+.option-card.selected.blue{border-color:var(--accent2);background:rgba(0,204,255,0.06)}
+.option-icon{font-size:30px;margin-bottom:10px}
+.option-name{font-family:var(--font-mono);font-size:13px;font-weight:700;margin-bottom:5px;color:var(--accent)}
+.option-name.blue{color:var(--accent2)}
+.option-desc{font-size:11px;color:var(--muted2);line-height:1.5}
+.warn-box{background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.2);border-radius:10px;padding:12px 14px;font-size:12px;color:#ff8899;margin-bottom:16px;display:none;line-height:1.6;text-align:left}
+.warn-box.show{display:block}
+.btn-confirm{width:100%;padding:13px;border:none;border-radius:10px;font-family:var(--font-body);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;background:linear-gradient(135deg,var(--accent),#00cc88);color:#070b0f}
+.btn-confirm:hover{opacity:0.9}
+.btn-confirm.blue-btn{background:linear-gradient(135deg,var(--accent2),#0088cc)}
+.badge-pill{display:inline-block;padding:3px 12px;border-radius:20px;font-family:var(--font-mono);font-size:11px;font-weight:700;margin-bottom:20px}
+.badge-pill.sim{background:rgba(0,255,170,0.1);border:1px solid rgba(0,255,170,0.3);color:var(--accent)}
+.badge-pill.real{background:rgba(0,204,255,0.1);border:1px solid rgba(0,204,255,0.3);color:var(--accent2)}
+
+/* TRADE PAGE */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(7,11,15,0.95);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.logo{font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--accent);letter-spacing:0.1em}
+.logo span{color:var(--muted2)}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hbadge{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.05em}
+.hbadge.sim{background:rgba(0,255,170,0.1);border:1px solid rgba(0,255,170,0.3);color:var(--accent)}
+.hbadge.real{background:rgba(0,204,255,0.1);border:1px solid rgba(0,204,255,0.3);color:var(--accent2)}
+.hbadge.manual{background:rgba(0,255,170,0.06);border:1px solid rgba(0,255,170,0.2);color:var(--accent)}
+.hbadge.bot{background:rgba(0,204,255,0.06);border:1px solid rgba(0,204,255,0.2);color:var(--accent2)}
+.hbadge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
+.hbadge.sim .dot,.hbadge.manual .dot{background:var(--accent)}
+.hbadge.real .dot,.hbadge.bot .dot{background:var(--accent2)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.bal-box{font-family:var(--font-mono);font-size:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:7px 12px}
+.bal-box .bl{color:var(--muted2);font-size:10px;margin-bottom:2px}
+.bal-box .bv{color:var(--accent);font-size:14px;font-weight:700}
+.user-box{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.user-email{font-family:var(--font-mono);font-size:10px;color:var(--muted2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-logout{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-family:var(--font-mono);font-size:10px;color:var(--muted2);cursor:pointer;transition:all 0.2s}
+.btn-logout:hover{color:var(--red);border-color:rgba(255,68,102,0.4)}
+
+.tmain{padding:16px 24px;max-width:1400px;margin:0 auto}
+.coin-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.pair-filter-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.quote-grp{display:flex;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px}
+.quote-btn{padding:5px 10px;border:none;border-radius:5px;background:none;color:var(--muted2);font-family:var(--font-mono);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.quote-btn:hover{color:var(--text)}
+.quote-btn.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+
+/* Binance-style pair selector */
+.pair-selector-wrap{position:relative;margin-bottom:14px;z-index:100}
+.pair-selected-btn{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;cursor:pointer;transition:all 0.2s;user-select:none}
+.pair-selected-btn:hover{border-color:var(--accent);background:var(--surface3)}
+.pair-dropdown{position:absolute;top:calc(100% + 6px);left:0;width:340px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;animation:fadeUp 0.2s ease}
+.pair-dropdown.hidden{display:none}
+.pair-search-wrap{position:relative;padding:12px 12px 8px}
+.pair-search-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px 8px 32px;font-family:var(--font-body);font-size:13px;color:var(--text);outline:none;transition:border-color 0.2s}
+.pair-search-input:focus{border-color:rgba(0,255,170,0.4)}
+.pair-search-input::placeholder{color:var(--muted2);opacity:0.6}
+.pair-tab-row{display:flex;gap:2px;padding:0 12px 8px;overflow-x:auto}
+.pair-tab-row::-webkit-scrollbar{display:none}
+.pair-tab{padding:4px 12px;border:none;background:none;color:var(--muted2);font-family:var(--font-mono);font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.pair-tab:hover{color:var(--text);background:var(--surface2)}
+.pair-tab.active{color:var(--accent);background:rgba(0,255,170,0.08)}
+.pair-list-header{display:grid;grid-template-columns:1fr 1fr 80px;padding:4px 14px 6px;font-size:11px;color:var(--muted2);border-bottom:1px solid var(--border)}
+.pair-list{max-height:280px;overflow-y:auto}
+.pair-list::-webkit-scrollbar{width:4px}
+.pair-list::-webkit-scrollbar-track{background:transparent}
+.pair-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.pair-item{display:grid;grid-template-columns:1fr 1fr 80px;padding:9px 14px;cursor:pointer;transition:background 0.15s;align-items:center}
+.pair-item:hover{background:var(--surface2)}
+.pair-item.active{background:rgba(0,255,170,0.05)}
+.pair-item-name{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
+.pair-item-price{font-family:var(--font-mono);font-size:12px;color:var(--text);text-align:right}
+.pair-item-chg{font-family:var(--font-mono);font-size:11px;text-align:right}
+.pair-item-chg.up{color:var(--green)}
+.pair-item-chg.dn{color:var(--red)}
+.coin-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px}
+.coin-btn:hover{border-color:var(--border2);color:var(--text)}
+.coin-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,170,0.06)}
+.cdot{width:7px;height:7px;border-radius:50%}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+.stat-card .sl{font-size:10px;color:var(--muted2);font-family:var(--font-mono);letter-spacing:0.05em;margin-bottom:5px}
+.stat-card .sv{font-family:var(--font-mono);font-size:18px;font-weight:700}
+.stat-card .sv.up{color:var(--green)}
+.stat-card .sv.down{color:var(--red)}
+
+.tgrid{display:grid;grid-template-columns:1fr 340px;gap:16px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.chart-title{font-family:var(--font-mono);font-size:13px;font-weight:700}
+.chart-price{font-family:var(--font-mono);font-size:22px;font-weight:700}
+.chart-price.up{color:var(--green)}
+.chart-price.down{color:var(--red)}
+.tf-grp{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:3px}
+.tf-btn{padding:4px 9px;border:none;border-radius:5px;background:none;color:var(--muted2);font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.tf-btn:hover{color:var(--text)}
+.tf-btn.active{background:var(--surface);color:var(--accent2);box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+#bbToggle{padding:4px 10px;border-radius:6px;border:1px solid rgba(0,204,255,0.3);background:rgba(0,204,255,0.08);color:var(--accent2);font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-left:4px}
+#bbToggle.off{background:none;color:var(--muted2);border-color:var(--border)}
+
+.chart-wrap{width:100%;height:300px;background:var(--surface2);border-radius:8px;overflow:hidden;position:relative}
+.chart-wrap canvas{display:block}
+
+.right-col{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.panel-title{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted2);letter-spacing:0.08em;margin-bottom:14px}
+
+/* Trade panel */
+.trade-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:14px}
+.trade-tab{padding:8px;border:none;border-radius:6px;font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;background:none;color:var(--muted2);transition:all 0.2s}
+.trade-tab.buy.active{background:rgba(0,255,170,0.12);color:var(--green)}
+.trade-tab.sell.active{background:rgba(255,68,102,0.12);color:var(--red)}
+.order-tabs{display:flex;gap:4px;margin-bottom:12px}
+.order-tab{padding:4px 12px;border:1px solid var(--border);border-radius:5px;background:none;font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--muted2);cursor:pointer;transition:all 0.2s}
+.order-tab.active{background:var(--surface2);color:var(--accent2);border-color:rgba(0,204,255,0.4)}
+.unit-grp{display:flex;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:3px;margin-bottom:10px}
+.unit-btn{flex:1;padding:5px;border:none;border-radius:5px;background:none;font-family:var(--font-body);font-size:11px;font-weight:500;color:var(--muted2);cursor:pointer;transition:all 0.2s;text-align:center}
+.unit-btn.active{background:var(--surface);color:var(--accent)}
+.flabel{font-size:11px;color:var(--muted2);font-family:var(--font-mono);margin-bottom:5px}
+.finput-wrap{position:relative;margin-bottom:10px}
+.finput{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 50px 9px 10px;font-family:var(--font-mono);font-size:13px;color:var(--text);outline:none;transition:border-color 0.2s}
+.finput:focus{border-color:var(--border2)}
+.finput-unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:11px;color:var(--muted2)}
+.total-row{background:var(--surface2);border-radius:7px;padding:9px 10px;font-family:var(--font-mono);font-size:12px;display:flex;justify-content:space-between;margin-bottom:12px}
+.total-row .tl{color:var(--muted2)}
+.total-row .tv{font-weight:700}
+.limit-wrap{display:none;margin-bottom:10px}
+.limit-wrap.show{display:block}
+.btn-trade{width:100%;padding:12px;border:none;border-radius:9px;font-family:var(--font-body);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-trade.buy{background:linear-gradient(135deg,#00ffaa,#00cc88);color:#070b0f}
+.btn-trade.sell{background:linear-gradient(135deg,#ff4466,#cc2244);color:#fff}
+.btn-trade:hover{opacity:0.9}
+.btn-trade:active{transform:scale(0.98)}
+.pending-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;display:none}
+.pending-wrap.show{display:block}
+.pending-title{font-family:var(--font-mono);font-size:10px;color:var(--muted2);margin-bottom:7px}
+.pending-item{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:5px;font-size:11px}
+.side-badge{padding:2px 7px;border-radius:4px;font-family:var(--font-mono);font-size:10px;font-weight:700}
+.side-badge.buy{background:rgba(0,255,170,0.12);color:var(--green)}
+.side-badge.sell{background:rgba(255,68,102,0.12);color:var(--red)}
+.btn-cancel{background:none;border:none;color:var(--muted2);cursor:pointer;font-size:12px;padding:2px 4px}
+.btn-cancel:hover{color:var(--red)}
+
+/* Portfolio */
+.port-top{display:flex;justify-content:space-between;margin-bottom:12px}
+.port-label{font-size:10px;color:var(--muted2);font-family:var(--font-mono)}
+.port-val{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--accent)}
+.holding{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.holding:last-child{border-bottom:none}
+.hicon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font-mono)}
+.hname{font-size:12px;font-weight:500}
+.hamount{font-family:var(--font-mono);font-size:10px;color:var(--muted2);margin-top:1px}
+.hval{font-family:var(--font-mono);font-size:12px;font-weight:700;text-align:right}
+.hpnl{font-family:var(--font-mono);font-size:10px;margin-top:1px;text-align:right}
+.hpnl.up{color:var(--green)}
+.hpnl.down{color:var(--red)}
+
+/* History */
+.hist-item{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px}
+.hist-item:last-child{border-bottom:none}
+.hist-info{font-family:var(--font-mono);font-size:10px;color:var(--muted2)}
+.hist-val{font-family:var(--font-mono);font-size:11px;font-weight:700}
+
+/* Bot */
+.bot-status{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;font-weight:700}
+.bot-status.on{color:var(--green)}
+.bot-status.off{color:var(--muted2)}
+.bot-status .bdot{width:7px;height:7px;border-radius:50%}
+.bot-status.on .bdot{background:var(--green);animation:pulse 1s infinite}
+.bot-status.off .bdot{background:var(--muted2)}
+.bb-vals{background:var(--surface2);border-radius:7px;padding:9px 10px;margin-bottom:12px;font-family:var(--font-mono);font-size:11px}
+.bbr{display:flex;justify-content:space-between;padding:2px 0}
+.bbr .bbl{color:var(--muted2)}
+.bot-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.bot-field{margin-bottom:10px}
+.bot-field label{display:block;font-size:11px;color:var(--muted2);font-family:var(--font-mono);margin-bottom:4px}
+.bot-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-family:var(--font-mono);font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s}
+.bot-input:focus{border-color:var(--border2)}
+.bot-tf-grp{display:flex;gap:2px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:3px;margin-bottom:12px}
+.bot-tf-btn{flex:1;padding:5px 4px;border:none;border-radius:5px;background:none;color:var(--muted2);font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;transition:all 0.2s;text-align:center;min-width:28px}
+.bot-tf-btn:hover{color:var(--text)}
+.bot-tf-btn.active{background:var(--surface);color:var(--accent2)}
+.btn-bot-start{width:100%;padding:11px;border:none;border-radius:9px;font-family:var(--font-head);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;background:linear-gradient(135deg,var(--accent),#00cc88);color:#070b0f}
+.btn-bot-stop{width:100%;padding:11px;border:1px solid rgba(255,68,102,0.4);border-radius:9px;font-family:var(--font-head);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;background:rgba(255,68,102,0.08);color:var(--red)}
+.bot-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px}
+.bstat{background:var(--surface2);border-radius:7px;padding:9px;text-align:center}
+.bstat .bsl{font-family:var(--font-mono);font-size:9px;color:var(--muted2);margin-bottom:3px}
+.bstat .bsv{font-family:var(--font-mono);font-size:12px;font-weight:700}
+.bot-log{margin-top:10px;max-height:140px;overflow-y:auto;background:var(--surface2);border-radius:7px;padding:8px}
+.log-item{font-family:var(--font-mono);font-size:10px;color:var(--muted2);padding:2px 0;border-bottom:1px solid var(--border);display:flex;gap:6px}
+.log-item:last-child{border-bottom:none}
+.log-time{color:var(--muted);flex-shrink:0}
+.log-item.buy .log-msg{color:var(--green)}
+.log-item.sell .log-msg{color:var(--red)}
+.log-item.info .log-msg{color:var(--accent2)}
+
+/* History card */
+.history-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:14px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:12px 16px;font-size:12px;display:flex;align-items:center;gap:8px;transform:translateX(120%);transition:transform 0.3s cubic-bezier(0.16,1,0.3,1);font-family:var(--font-mono);max-width:280px}
+.toast.show{transform:translateX(0)}
+.toast.success{border-color:rgba(0,255,170,0.4)}
+.toast.error{border-color:rgba(255,68,102,0.4)}
+
+@media(max-width:900px){.tgrid{grid-template-columns:1fr}.stats-row{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.tmain{padding:10px}.header{padding:10px 14px}.stats-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ======= AUTH PAGE ======= -->
+<div class="page active" id="page-auth">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <h1>CryptoTrade</h1>
+        <p>เข้าสู่ระบบเพื่อเริ่มเทรด</p>
+      </div>
+      <div id="auth-main">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="authTab('login')">เข้าสู่ระบบ</button>
+          <button class="tab-btn" onclick="authTab('register')">สมัครสมาชิก</button>
+        </div>
+        <div class="alert alert-success" id="a-ok"><span>✓</span><span id="a-ok-msg"></span></div>
+        <div class="alert alert-error" id="a-err"><span>✕</span><span id="a-err-msg"></span></div>
+        <!-- Login -->
+        <div class="form-panel active" id="fp-login">
+          <div class="field"><label>อีเมล</label>
+            <div class="input-wrap"><span class="icon">✉</span>
+              <input type="email" id="l-email" placeholder="กรอกอีเมล">
+            </div><div class="field-error" id="le-email">กรุณากรอกอีเมลที่ถูกต้อง</div>
+          </div>
+          <div class="field"><label>รหัสผ่าน</label>
+            <div class="input-wrap"><span class="icon">🔒</span>
+              <input type="password" id="l-pw" placeholder="กรอกรหัสผ่าน">
+              <button class="toggle-pw" onclick="togglePw('l-pw',this)">👁</button>
+            </div><div class="field-error" id="le-pw">กรุณากรอกรหัสผ่าน</div>
+          </div>
+          <div class="forgot"><a href="#" onclick="doForgot();return false">ลืมรหัสผ่าน?</a></div>
+          <button class="btn-submit" id="btn-login" onclick="doLogin()">
+            <span class="btn-text">เข้าสู่ระบบ</span><div class="spinner"></div>
+          </button>
+        </div>
+        <!-- Register -->
+        <div class="form-panel" id="fp-register">
+          <div class="field"><label>อีเมล</label>
+            <div class="input-wrap"><span class="icon">✉</span>
+              <input type="email" id="r-email" placeholder="กรอกอีเมล">
+            </div><div class="field-error" id="re-email">กรุณากรอกอีเมลที่ถูกต้อง</div>
+          </div>
+          <div class="field"><label>รหัสผ่าน</label>
+            <div class="input-wrap"><span class="icon">🔒</span>
+              <input type="password" id="r-pw" placeholder="อย่างน้อย 6 ตัวอักษร" oninput="pwStrength(this.value)">
+              <button class="toggle-pw" onclick="togglePw('r-pw',this)">👁</button>
+            </div><div class="field-error" id="re-pw">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</div>
+            <div class="pw-strength" id="pws"><div class="strength-bar"><div class="strength-fill" id="sf"></div></div><div class="strength-label" id="sl"></div></div>
+          </div>
+          <div class="field"><label>ยืนยันรหัสผ่าน</label>
+            <div class="input-wrap"><span class="icon">🔐</span>
+              <input type="password" id="r-pw2" placeholder="กรอกรหัสผ่านอีกครั้ง">
+              <button class="toggle-pw" onclick="togglePw('r-pw2',this)">👁</button>
+            </div><div class="field-error" id="re-pw2">รหัสผ่านไม่ตรงกัน</div>
+          </div>
+          <button class="btn-submit" id="btn-reg" onclick="doRegister()">
+            <span class="btn-text">สมัครสมาชิก</span><div class="spinner"></div>
+          </button>
+        </div>
+      </div>
+      <div class="confirm-screen" id="confirm-screen">
+        <span class="confirm-icon">📧</span>
+        <h2>ตรวจสอบอีเมลของคุณ</h2>
+        <p>เราส่งลิงก์ยืนยันไปที่อีเมลของคุณแล้ว</p>
+        <button class="btn-back-login" onclick="showAuthMain()">← กลับไปเข้าสู่ระบบ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= TRADE PAGE ======= -->
+<div class="page" id="page-trade">
+
+  <!-- Mode overlay -->
+  <div class="overlay hidden" id="ov-mode">
+    <div class="overlay-card">
+      <div class="overlay-title">CRYPTO / TRADE</div>
+      <div class="overlay-sub">เลือกโหมดการเทรด</div>
+      <div class="option-grid">
+        <div class="option-card selected" id="mo-sim" onclick="pickMode('sim')">
+          <div class="option-icon">🎮</div>
+          <div class="option-name">จำลอง</div>
+          <div class="option-desc">เทรดด้วยเงินสมมติ $10,000 ไม่มีความเสี่ยง</div>
+        </div>
+        <div class="option-card" id="mo-real" onclick="pickMode('real')">
+          <div class="option-icon">💰</div>
+          <div class="option-name blue">จริง</div>
+          <div class="option-desc">ใช้เงินจริง มีความเสี่ยง</div>
+        </div>
+      </div>
+      <div class="warn-box" id="mode-warn">⚠️ โหมดจริงใช้เงินจริง มีความเสี่ยงสูญเสียเงินต้น</div>
+      <button class="btn-confirm" id="btn-mode-ok" onclick="confirmMode()">เริ่มเทรดจำลอง 🎮</button>
+    </div>
+  </div>
+
+  <!-- Method overlay -->
+  <div class="overlay hidden" id="ov-method">
+    <div class="overlay-card">
+      <div class="overlay-title">วิธีการเทรด</div>
+      <div class="badge-pill sim" id="method-mode-badge">🎮 จำลอง</div>
+      <div class="option-grid">
+        <div class="option-card selected" id="me-manual" onclick="pickMethod('manual')">
+          <div class="option-icon">🖐️</div>
+          <div class="option-name">Manual</div>
+          <div class="option-desc">เทรดด้วยตัวเอง Market & Limit Order</div>
+        </div>
+        <div class="option-card" id="me-bot" onclick="pickMethod('bot')">
+          <div class="option-icon">🤖</div>
+          <div class="option-name blue">Bot</div>
+          <div class="option-desc">Bollinger Band Strategy อัตโนมัติ</div>
+        </div>
+      </div>
+      <button class="btn-confirm" id="btn-method-ok" onclick="confirmMethod()">เริ่มเทรด Manual 🖐️</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">CRYPTO<span>/</span>TRADE</div>
+    <div class="header-right">
+      <div class="hbadge sim" id="hb-mode" onclick="document.getElementById('ov-mode').classList.remove('hidden')">
+        <span class="dot"></span><span id="hb-mode-txt">จำลอง</span>
+      </div>
+      <div class="hbadge manual" id="hb-method" onclick="openMethodOverlay()">
+        <span class="dot"></span><span id="hb-method-txt">🖐️ Manual</span>
+      </div>
+      <div class="bal-box">
+        <div class="bl">ยอดเงิน</div>
+        <div class="bv" id="hbal">$10,000.00</div>
+      </div>
+      <div class="user-box">
+        <span class="user-email" id="user-email"></span>
+        <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tmain">
+    <!-- Coin selector — Binance style -->
+    <div class="pair-selector-wrap" id="pair-selector-wrap">
+      <div class="pair-selected-btn" id="pair-selected-btn" onclick="togglePairDropdown()">
+        <span class="cdot" id="pair-sel-dot" style="background:#f7931a"></span>
+        <span id="pair-sel-label" style="font-family:var(--font-mono);font-size:13px;font-weight:700">BTC/USDT</span>
+        <span style="margin-left:4px;color:var(--muted2);font-size:10px" id="pair-sel-arrow">▼</span>
+      </div>
+      <div class="pair-dropdown hidden" id="pair-dropdown">
+        <div class="pair-search-wrap">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted2);font-size:13px">🔍</span>
+          <input class="pair-search-input" id="pair-search-input" type="text" placeholder="ค้นหาคู่เทรด เช่น BTC, USDT..." oninput="renderDropdownList()" autocomplete="off"/>
+        </div>
+        <div class="pair-tab-row" id="pair-tab-row">
+          <button class="pair-tab active" onclick="setPairTab('ALL',this)">ทั้งหมด</button>
+          <button class="pair-tab" onclick="setPairTab('USDT',this)">USDT</button>
+          <button class="pair-tab" onclick="setPairTab('FDUSD',this)">FDUSD</button>
+          <button class="pair-tab" onclick="setPairTab('USDC',this)">USDC</button>
+          <button class="pair-tab" onclick="setPairTab('BTC',this)">BTC</button>
+          <button class="pair-tab" onclick="setPairTab('ETH',this)">ETH</button>
+        </div>
+        <div class="pair-list-header">
+          <span>คู่เทรด</span><span>ราคา</span><span>เปลี่ยนแปลง</span>
+        </div>
+        <div class="pair-list" id="pair-list"></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="sl">ราคา</div><div class="sv" id="s-price">--</div><div style="font-size:10px;color:var(--muted2);margin-top:3px" id="s-chg">--</div></div>
+      <div class="stat-card"><div class="sl">สูงสุด 24H</div><div class="sv up" id="s-high">--</div></div>
+      <div class="stat-card"><div class="sl">ต่ำสุด 24H</div><div class="sv down" id="s-low">--</div></div>
+      <div class="stat-card"><div class="sl">Volume 24H</div><div class="sv" id="s-vol">--</div></div>
+    </div>
+
+    <div class="tgrid">
+      <!-- Left: Chart + History -->
+      <div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title" id="chart-title">BTC/USDT</div>
+              <div class="chart-price up" id="chart-price">--</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <div class="tf-grp">
+                <button class="tf-btn" onclick="setTF('1m')">1m</button>
+                <button class="tf-btn" onclick="setTF('5m')">5m</button>
+                <button class="tf-btn" onclick="setTF('15m')">15m</button>
+                <button class="tf-btn" onclick="setTF('1h')">1h</button>
+                <button class="tf-btn active" onclick="setTF('4h')">4h</button>
+                <button class="tf-btn" onclick="setTF('1d')">1D</button>
+                <button class="tf-btn" onclick="setTF('1w')">1W</button>
+              </div>
+              <button id="bbToggle" onclick="toggleBB()">BB ✓</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chartWrap">
+            <canvas id="chartCanvas"></canvas>
+          </div>
+        </div>
+
+        <div class="history-card">
+          <div class="panel-title">ประวัติการเทรด</div>
+          <div id="hist-list"><div style="text-align:center;color:var(--muted2);font-size:12px;padding:16px">ยังไม่มีประวัติ</div></div>
+        </div>
+      </div>
+
+      <!-- Right: Trade + Portfolio + Bot -->
+      <div class="right-col">
+
+        <!-- Manual trade panel -->
+        <div class="panel" id="panel-manual">
+          <div class="trade-tabs">
+            <button class="trade-tab buy active" id="t-buy" onclick="setTradeMode('buy')">ซื้อ (Buy)</button>
+            <button class="trade-tab sell" id="t-sell" onclick="setTradeMode('sell')">ขาย (Sell)</button>
+          </div>
+          <div class="order-tabs">
+            <button class="order-tab active" id="ot-market" onclick="setOrderType('market')">MARKET</button>
+            <button class="order-tab" id="ot-limit" onclick="setOrderType('limit')">LIMIT</button>
+          </div>
+          <div class="limit-wrap" id="limit-wrap">
+            <div class="flabel">ราคา Limit</div>
+            <div class="finput-wrap">
+              <input class="finput" type="number" id="limit-price" placeholder="0.00" oninput="calcTotal();drawChart()" min="0" step="any">
+              <span class="finput-unit" id="limit-unit">USDT</span>
+            </div>
+          </div>
+          <div class="unit-grp">
+            <button class="unit-btn active" id="u-coin" onclick="setUnit('coin')">จำนวนเหรียญ <span id="u-coin-lbl">BTC</span></button>
+            <button class="unit-btn" id="u-quote" onclick="setUnit('quote')">จำนวนเงิน <span id="u-quote-lbl">USDT</span></button>
+          </div>
+          <div class="flabel" id="amt-label">จำนวน BTC</div>
+          <div class="finput-wrap">
+            <input class="finput" type="number" id="trade-amt" placeholder="0.00" oninput="calcTotal()" min="0" step="any">
+            <span class="finput-unit" id="trade-unit">BTC</span>
+          </div>
+          <div class="total-row"><span class="tl" id="total-label">มูลค่ารวม</span><span class="tv" id="trade-total">$0.00</span></div>
+          <button class="btn-trade buy" id="btn-trade" onclick="doTrade()">ซื้อ BTC</button>
+          <div class="pending-wrap" id="pending-wrap">
+            <div class="pending-title">PENDING ORDERS</div>
+            <div id="pending-list"></div>
+          </div>
+        </div>
+
+        <!-- Portfolio -->
+        <div class="panel">
+          <div class="panel-title">PORTFOLIO</div>
+          <div class="port-top">
+            <div><div class="port-label">เงินสด</div><div class="port-val" id="p-cash">$10,000.00</div></div>
+            <div style="text-align:right"><div class="port-label">มูลค่าพอร์ต</div><div class="port-val" id="p-total">$10,000.00</div></div>
+          </div>
+          <div id="holdings"><div style="text-align:center;color:var(--muted2);font-size:12px;padding:12px">ยังไม่มี Crypto</div></div>
+        </div>
+
+        <!-- Bot panel -->
+        <div class="panel" id="panel-bot" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="panel-title" style="margin-bottom:0">BOLLINGER BOT</div>
+            <div class="bot-status off" id="bot-status"><span class="bdot"></span><span id="bot-status-txt">หยุด</span></div>
+          </div>
+          <div class="bb-vals" id="bb-vals">
+            <div class="bbr"><span class="bbl">Upper</span><span style="color:#ff4466" id="bb-upper">--</span></div>
+            <div class="bbr"><span class="bbl">SMA</span><span style="color:var(--accent2)" id="bb-mid">--</span></div>
+            <div class="bbr"><span class="bbl">Lower</span><span style="color:var(--accent)" id="bb-lower">--</span></div>
+            <div class="bbr"><span class="bbl">ราคา</span><span id="bb-cur">--</span></div>
+          </div>
+          <div class="bot-field"><label>Timeframe ของ BB</label>
+            <div class="bot-tf-grp">
+              <button class="bot-tf-btn" onclick="setBotTF('1m')">1m</button>
+              <button class="bot-tf-btn" onclick="setBotTF('5m')">5m</button>
+              <button class="bot-tf-btn" onclick="setBotTF('15m')">15m</button>
+              <button class="bot-tf-btn" onclick="setBotTF('1h')">1h</button>
+              <button class="bot-tf-btn active" onclick="setBotTF('4h')">4h</button>
+              <button class="bot-tf-btn" onclick="setBotTF('1d')">1D</button>
+              <button class="bot-tf-btn" onclick="setBotTF('1w')">1W</button>
+            </div>
+          </div>
+          <div class="bot-row">
+            <div class="bot-field"><label>Period (SMA)</label><input class="bot-input" type="number" id="bot-period" value="20" min="5" max="50" oninput="drawChart()"></div>
+            <div class="bot-field"><label>StdDev</label><input class="bot-input" type="number" id="bot-std" value="2" min="1" max="4" step="0.5" oninput="drawChart()"></div>
+          </div>
+          <div class="bot-field"><label>เหรียญที่ Bot เทรด</label>
+            <select class="bot-input" id="bot-coin" onchange="document.getElementById('bot-coin-lbl').textContent=this.value">
+              <option>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>XRP</option><option>DOGE</option>
+            </select>
+          </div>
+          <div class="bot-field"><label>จำนวนต่อครั้ง (<span id="bot-coin-lbl">BTC</span>)</label>
+            <input class="bot-input" type="number" id="bot-amt" value="0.001" min="0" step="any" placeholder="เช่น 0.001">
+          </div>
+          <div class="bot-field"><label>จำนวนไม้สูงสุด <span style="color:var(--muted2);font-size:10px">(ซื้อได้กี่ครั้ง)</span></label>
+            <input class="bot-input" type="number" id="bot-max-pos" value="3" min="1" max="20" step="1" placeholder="เช่น 3">
+          </div>
+          <div style="background:var(--surface2);border-radius:7px;padding:8px 10px;margin-bottom:10px;font-family:var(--font-mono);font-size:11px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted2)">ไม้ที่เปิดอยู่</span>
+            <span id="bot-pos-count" style="color:var(--accent)">0 / 3</span>
+          </div>
+          <div id="bot-btn"><button class="btn-bot-start" onclick="startBot()">▶ เริ่ม Bot</button></div>
+          <div class="bot-stats">
+            <div class="bstat"><div class="bsl">เทรด</div><div class="bsv" id="b-trades">0</div></div>
+            <div class="bstat"><div class="bsl">P&L</div><div class="bsv" id="b-pnl">$0</div></div>
+            <div class="bstat"><div class="bsl">Win%</div><div class="bsv" id="b-win">0%</div></div>
+          </div>
+          <div class="bot-log" id="bot-log"><div class="log-item info"><span class="log-time">--:--</span><span class="log-msg">Bot พร้อมทำงาน</span></div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== INIT SUPABASE after page load =====
+let db
+window.addEventListener('load', () => {
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  db.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      const conf = document.getElementById('confirm-screen')
+      if (conf.classList.contains('show')) {
+        document.getElementById('user-email').textContent = session.user.email
+        goTrade()
+      }
+    }
+  })
+  checkSession()
+})
+
+async function checkSession() {
+  const { data: { session } } = await db.auth.getSession()
+  if (session) {
+    document.getElementById('user-email').textContent = session.user.email
+    goTrade()
+  }
+}
+
+function goTrade() {
+  showPage('trade')
+  document.getElementById('ov-mode').classList.remove('hidden')
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.getElementById('page-' + id).classList.add('active')
+}
+
+// ===== AUTH =====
+function authTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')))
+  document.getElementById('fp-login').classList.toggle('active', tab==='login')
+  document.getElementById('fp-register').classList.toggle('active', tab==='register')
+  clearAuth()
+}
+function showAuthMain() {
+  document.getElementById('auth-main').style.display = 'block'
+  document.getElementById('confirm-screen').classList.remove('show')
+  clearAuth(); authTab('login')
+}
+function isEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) }
+function togglePw(id, btn) { const i = document.getElementById(id); i.type = i.type==='password'?'text':'password'; btn.textContent = i.type==='password'?'👁':'🙈' }
+function showFE(id, show) { const e = document.getElementById(id); e.classList.toggle('show', show); e.style.display = show?'block':'none' }
+function clearAuth() {
+  document.querySelectorAll('.field-error').forEach(e => { e.classList.remove('show'); e.style.display='none' })
+  document.getElementById('a-ok').classList.remove('show')
+  document.getElementById('a-err').classList.remove('show')
+}
+function authAlert(type, msg) {
+  clearAuth()
+  const el = document.getElementById('a-'+type)
+  document.getElementById('a-'+type+'-msg').textContent = msg
+  el.classList.add('show')
+}
+function setLoad(id, on) { document.getElementById(id).classList.toggle('loading', on) }
+function pwStrength(v) {
+  const el = document.getElementById('pws'); if (!v) { el.classList.remove('show'); return }
+  el.classList.add('show')
+  let s = 0; if(v.length>=6)s++; if(v.length>=10)s++; if(/[0-9]/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++
+  const c = [{w:'25%',c:'#fc8181',t:'อ่อนมาก'},{w:'50%',c:'#f6ad55',t:'พอใช้'},{w:'75%',c:'#68d391',t:'ดี'},{w:'100%',c:'#48bb78',t:'แข็งแกร่ง'}]
+  const cfg = c[Math.min(s,3)]
+  const f = document.getElementById('sf'); f.style.width=cfg.w; f.style.background=cfg.c
+  const l = document.getElementById('sl'); l.textContent=cfg.t; l.style.color=cfg.c
+}
+async function doLogin() {
+  clearAuth()
+  const email = document.getElementById('l-email').value.trim()
+  const pw = document.getElementById('l-pw').value
+  let ok = true
+  if (!isEmail(email)) { showFE('le-email', true); ok = false }
+  if (!pw) { showFE('le-pw', true); ok = false }
+  if (!ok) return
+  setLoad('btn-login', true)
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pw })
+  setLoad('btn-login', false)
+  if (error) { authAlert('err', error.message.includes('Invalid')?'อีเมลหรือรหัสผ่านไม่ถูกต้อง':error.message) }
+  else { document.getElementById('user-email').textContent=data.user.email; authAlert('ok','เข้าสู่ระบบสำเร็จ!'); setTimeout(goTrade, 600) }
+}
+async function doRegister() {
+  clearAuth()
+  const email = document.getElementById('r-email').value.trim()
+  const pw = document.getElementById('r-pw').value
+  const pw2 = document.getElementById('r-pw2').value
+  let ok = true
+  if (!isEmail(email)) { showFE('re-email', true); ok = false }
+  if (pw.length < 6) { showFE('re-pw', true); ok = false }
+  if (pw !== pw2) { showFE('re-pw2', true); ok = false }
+  if (!ok) return
+  setLoad('btn-reg', true)
+  const { error } = await db.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.href } })
+  setLoad('btn-reg', false)
+  if (error) { authAlert('err', error.message.includes('already')?'อีเมลนี้ถูกใช้แล้ว':error.message) }
+  else { document.getElementById('auth-main').style.display='none'; document.getElementById('confirm-screen').classList.add('show') }
+}
+async function doForgot() {
+  const email = document.getElementById('l-email').value.trim()
+  if (!isEmail(email)) { authAlert('err','กรุณากรอกอีเมลก่อน'); return }
+  const { error } = await db.auth.resetPasswordForEmail(email)
+  if (error) authAlert('err', error.message)
+  else authAlert('ok', 'ส่งลิงก์รีเซ็ตไปที่ ' + email)
+}
+async function doLogout() { await db.auth.signOut(); showPage('auth'); showAuthMain() }
+
+// ===== TRADE STATE =====
+let cash=10000, holdings={}, tradeHistory=[], pendingOrders=[]
+let currentCoin='BTC', currentQuote='USDT', currentTF='4h'
+let tradeMode='buy', orderType='market', tradeUnit='coin'
+let showBB=true, prices={}, priceHistory={}
+let tradeMethod='manual', tradeModeSim=true
+let botRunning=false, botInterval=null
+let botPositions=[] // track each buy position
+let botTrades=0, botWins=0, botPnl=0, botLastBuy=0
+let botWasBelow=false, botWasAbove=false, botHasLong=false
+let botTF='4h', botLogs=[]
+let priceInterval=null
+
+// คู่เทรด — โหลดจาก Binance API อัตโนมัติ
+let PAIRS = []
+const COINS = {}
+
+const COIN_COLORS = {
+  BTC:"#f7931a",ETH:"#627eea",BNB:"#f3ba2f",SOL:"#9945ff",XRP:"#00aae4",
+  DOGE:"#c2a633",ADA:"#0033ad",AVAX:"#e84142",DOT:"#e6007a",LINK:"#2a5ada",
+  MATIC:"#8247e5",POL:"#8247e5",UNI:"#ff007a",ATOM:"#6f4caf",LTC:"#bfbbbb",
+  TRX:"#eb0029",SHIB:"#e4521a",SUI:"#6fbcf0",TON:"#0098ea",PEPE:"#4caf50",
+  OP:"#ff0420",ARB:"#28a0f0",APT:"#00c2cb",INJ:"#00c9ff",SEI:"#e74c3c",
+  WLD:"#3b82f6",FIL:"#0090ff",ICP:"#29abe2",NEAR:"#00c08b",FTM:"#1969ff",
+}
+
+const QUOTE_TABS = ["USDT","FDUSD","USDC","BTC","ETH","BNB","TRY","EUR","BRL"]
+
+async function loadAllPairs() {
+  try {
+    const res = await fetch("https://api.binance.com/api/v3/exchangeInfo")
+    const data = await res.json()
+    const quoteSet = new Set(QUOTE_TABS)
+    PAIRS = data.symbols
+      .filter(s => s.status === "TRADING" && quoteSet.has(s.quoteAsset))
+      .map(s => ({
+        coin:  s.baseAsset,
+        quote: s.quoteAsset,
+        label: s.baseAsset + "/" + s.quoteAsset,
+        color: COIN_COLORS[s.baseAsset] || "#718096",
+        baseUSDT: 0,
+      }))
+      .sort((a,b) => {
+        const qi = QUOTE_TABS.indexOf(a.quote) - QUOTE_TABS.indexOf(b.quote)
+        return qi !== 0 ? qi : a.coin.localeCompare(b.coin)
+      })
+    PAIRS.forEach(p => {
+      if (!COINS[p.coin]) COINS[p.coin] = {name:p.coin, color:p.color, baseUSDT:0}
+      if (!prices[p.coin]) { prices[p.coin]=0; priceHistory[p.coin]=[] }
+    })
+    renderQuoteTabs()
+  } catch(e) {
+    console.warn("loadAllPairs failed", e)
+    useFallbackPairs()
+  }
+}
+
+function renderQuoteTabs() {
+  const tabRow = document.getElementById('pair-tab-row')
+  if (!tabRow) return
+  const quotes = ['ALL', ...QUOTE_TABS.filter(q => PAIRS.some(p=>p.quote===q))]
+  tabRow.innerHTML = quotes.map((q,i) => {
+    const a = i===0 ? ' active' : ''
+    const label = q==='ALL' ? 'ทั้งหมด' : q
+    return '<button class="pair-tab' + a + '" onclick="setPairTab(\'' + q + '\',this)">' + label + '</button>'
+  }).join('')
+}
+
+function useFallbackPairs() {
+  const fb = [["BTC","USDT"],["ETH","USDT"],["BNB","USDT"],["SOL","USDT"],["XRP","USDT"],
+    ["DOGE","USDT"],["ADA","USDT"],["AVAX","USDT"],["BTC","FDUSD"],["ETH","FDUSD"]]
+  fb.forEach(([coin,quote])=>{
+    PAIRS.push({coin,quote,label:coin+"/"+quote,color:COIN_COLORS[coin]||"#718096",baseUSDT:0})
+    if (!COINS[coin]) COINS[coin]={name:coin,color:COIN_COLORS[coin]||"#718096",baseUSDT:0}
+    prices[coin]=0; priceHistory[coin]=[]
+  })
+  renderQuoteTabs()
+}
+
+
+// ===== MODE & METHOD =====
+function pickMode(m) {
+  tradeModeSim = m==='sim'
+  document.getElementById('mo-sim').classList.toggle('selected', tradeModeSim)
+  document.getElementById('mo-real').classList.toggle('selected', !tradeModeSim)
+  document.getElementById('mode-warn').classList.toggle('show', !tradeModeSim)
+  const btn = document.getElementById('btn-mode-ok')
+  btn.textContent = tradeModeSim?'เริ่มเทรดจำลอง 🎮':'เริ่มเทรดจริง 💰'
+  btn.classList.toggle('blue-btn', !tradeModeSim)
+}
+function confirmMode() {
+  document.getElementById('ov-mode').classList.add('hidden')
+  const hb = document.getElementById('hb-mode')
+  hb.className = 'hbadge '+(tradeModeSim?'sim':'real')
+  document.getElementById('hb-mode-txt').textContent = tradeModeSim?'จำลอง':'จริง'
+  document.getElementById('method-mode-badge').textContent = tradeModeSim?'🎮 จำลอง':'💰 จริง'
+  document.getElementById('method-mode-badge').className = 'badge-pill '+(tradeModeSim?'sim':'real')
+  // Reset portfolio when switching modes
+  if (tradeModeSim) {
+    cash = 10000
+    holdings = {}
+    tradeHistory = []
+    pendingOrders = []
+  }
+  document.getElementById('ov-method').classList.remove('hidden')
+}
+function pickMethod(m) {
+  tradeMethod = m
+  document.getElementById('me-manual').classList.toggle('selected', m==='manual')
+  document.getElementById('me-bot').classList.toggle('selected', m==='bot')
+  const btn = document.getElementById('btn-method-ok')
+  btn.textContent = m==='manual'?'เริ่มเทรด Manual 🖐️':'เริ่มใช้ Bot 🤖'
+  btn.classList.toggle('blue-btn', m==='bot')
+}
+function confirmMethod() {
+  document.getElementById('ov-method').classList.add('hidden')
+  document.getElementById('panel-manual').style.display = tradeMethod==='manual'?'block':'none'
+  document.getElementById('panel-bot').style.display = tradeMethod==='bot'?'block':'none'
+  const hb = document.getElementById('hb-method')
+  hb.className = 'hbadge '+(tradeMethod==='manual'?'manual':'bot')
+  document.getElementById('hb-method-txt').textContent = tradeMethod==='manual'?'🖐️ Manual':'🤖 Bot'
+  // Start everything — โหลด pairs จาก Binance ก่อน
+  loadAllPairs().then(() => {
+    renderCoinBtns()
+    fetchPrices()
+    if (priceInterval) clearInterval(priceInterval)
+    priceInterval = setInterval(fetchPrices, 15000) // 15s เพื่อไม่ให้ถูก Binance ban
+    fetchHistory(currentCoin).then(() => {
+      updateUI(); drawChart()
+      // ถามว่าจะรันต่อจากเดิมมั้ย (เฉพาะโหมดจำลอง)
+      if (tradeModeSim) setTimeout(checkResume, 800)
+    })
+  })
+  // Load real account if real mode
+  if (!tradeModeSim) {
+    fetchRealAccount()
+    if (window.realAccountInterval) clearInterval(window.realAccountInterval)
+    window.realAccountInterval = setInterval(fetchRealAccount, 30000)
+  } else {
+    if (window.realAccountInterval) clearInterval(window.realAccountInterval)
+  }
+}
+function openMethodOverlay() {
+  if (botRunning) { toast('หยุด Bot ก่อนเปลี่ยนโหมด','error'); return }
+  document.getElementById('ov-method').classList.remove('hidden')
+}
+
+// ===== PAIR SELECTOR (Binance style) =====
+let activeQuoteFilter = 'ALL'
+let pairDropdownOpen = false
+
+function togglePairDropdown() {
+  pairDropdownOpen = !pairDropdownOpen
+  document.getElementById('pair-dropdown').classList.toggle('hidden', !pairDropdownOpen)
+  document.getElementById('pair-sel-arrow').textContent = pairDropdownOpen ? '▲' : '▼'
+  if (pairDropdownOpen) {
+    document.getElementById('pair-search-input').focus()
+    renderDropdownList()
+  }
+}
+
+function closePairDropdown() {
+  pairDropdownOpen = false
+  document.getElementById('pair-dropdown').classList.add('hidden')
+  document.getElementById('pair-sel-arrow').textContent = '▼'
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('pair-selector-wrap').contains(e.target)) closePairDropdown()
+})
+
+function setPairTab(q, btn) {
+  activeQuoteFilter = q
+  document.querySelectorAll('.pair-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderDropdownList()
+}
+
+function renderDropdownList() {
+  const q = document.getElementById('pair-search-input').value.trim().toUpperCase()
+  const filtered = PAIRS.filter(p => {
+    const matchTab = activeQuoteFilter === 'ALL' || p.quote === activeQuoteFilter
+    const matchSearch = !q || p.label.includes(q) || p.coin.includes(q) || p.quote.includes(q)
+    return matchTab && matchSearch
+  })
+  const html = filtered.map(p => {
+    const sym = p.coin
+    const pr = prices[sym] ? formatPairPrice(prices[sym], p.quote) : '--'
+    const chg = COINS[sym] && COINS[sym]._chg !== undefined ? COINS[sym]._chg : null
+    const chgStr = chg !== null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '--'
+    const chgClass = chg === null ? '' : chg >= 0 ? 'up' : 'dn'
+    const isActive = p.coin === currentCoin && p.quote === currentQuote
+    return `<div class="pair-item${isActive?' active':''}" onclick="selectPair('${p.coin}','${p.quote}','${p.color}','${p.label}')">
+      <div class="pair-item-name"><span class="cdot" style="background:${p.color}"></span>${p.label}</div>
+      <div class="pair-item-price">${pr}</div>
+      <div class="pair-item-chg ${chgClass}">${chgStr}</div>
+    </div>`
+  }).join('')
+  document.getElementById('pair-list').innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--muted2);font-size:13px">ไม่พบคู่เทรด</div>'
+}
+
+function formatPairPrice(price, quote) {
+  if (price >= 1000) return price.toLocaleString(undefined,{maximumFractionDigits:2})
+  if (price >= 1) return price.toFixed(4)
+  if (price >= 0.01) return price.toFixed(6)
+  return price.toFixed(8)
+}
+
+function selectPair(coin, quote, color, label) {
+  currentCoin = coin
+  currentQuote = quote
+  document.getElementById('pair-sel-dot').style.background = color
+  document.getElementById('pair-sel-label').textContent = label
+  closePairDropdown()
+  document.getElementById('trade-unit').textContent = coin
+  document.getElementById('u-coin-lbl').textContent = coin
+  document.getElementById('u-quote-lbl').textContent = quote
+  document.getElementById('limit-unit').textContent = quote
+  document.getElementById('amt-label').textContent = 'จำนวน ' + coin
+  document.getElementById('btn-trade').textContent = (tradeMode==='buy'?'ซื้อ ':'ขาย ') + coin
+  fetchHistory(coin).then(() => { updateUI(); drawChart() })
+  fetchPrices()
+}
+
+// compat shims
+function renderCoinBtns() { renderDropdownList() }
+function setPair(coin, quote) {
+  const p = PAIRS.find(x=>x.coin===coin&&x.quote===quote)
+  if (p) selectPair(p.coin, p.quote, p.color, p.label)
+}
+function setCoin(c) { setPair(c, currentQuote) }
+function setQuote(q) { setPair(currentCoin, q) }
+
+// ===== FETCH =====
+async function fetchPrices() {
+  try {
+    let data
+    // ดึงเฉพาะ currentCoin+currentQuote เสมอ
+    // ถ้า dropdown เปิดอยู่ ดึง tab filter ด้วย แต่ cap ที่ 20 คู่เท่านั้น
+    const currentSym = currentCoin + currentQuote
+    const symSet = new Set([currentSym])
+    if (pairDropdownOpen) {
+      const filterPairs = activeQuoteFilter === 'ALL'
+        ? PAIRS.slice(0, 20)
+        : PAIRS.filter(p => p.quote === activeQuoteFilter).slice(0, 20)
+      filterPairs.forEach(p => symSet.add(p.coin + p.quote))
+    }
+    const allSymbols = [...symSet]
+    if (tradeModeSim) {
+      // ใช้ /api/v3/ticker/24hr แบบ single symbol ถ้ามีแค่ 1 ตัว (เบากว่ามาก)
+      if (allSymbols.length === 1) {
+        const d = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${allSymbols[0]}`).then(r=>r.json())
+        data = [d]
+      } else {
+        const url = 'https://api.binance.com/api/v3/ticker/24hr?symbols=['+allSymbols.map(p=>'"'+p+'"').join(',')+']'
+        data = await fetch(url).then(r=>r.json())
+      }
+    } else {
+      // Real mode: fetch via backend
+      data = await fetch(`${BACKEND_URL}/prices?symbols=${allSymbols.join(',')}`).then(r=>r.json())
+    }
+    data.forEach(d => {
+      const pair = PAIRS.find(p=>p.coin+p.quote===d.symbol)
+      if (!pair) return
+      const coin = pair.coin
+      if (COINS[coin]) {
+        const newPrice = parseFloat(d.lastPrice)
+        prices[coin] = newPrice
+        COINS[coin]._high = parseFloat(d.highPrice)
+        COINS[coin]._low  = parseFloat(d.lowPrice)
+        COINS[coin]._vol  = parseFloat(d.quoteVolume)
+        COINS[coin]._chg  = parseFloat(d.priceChangePercent)
+        if (priceHistory[coin] && priceHistory[coin].length > 0) {
+          const last = priceHistory[coin][priceHistory[coin].length-1]
+          const now = Date.now()
+          const tfMs = {
+            '1m':60000,'5m':300000,'15m':900000,'1h':3600000,
+            '4h':14400000,'1d':86400000,'1w':604800000
+          }
+          const tfDuration = tfMs[currentTF] || 14400000
+          // คำนวณ candle ปัจจุบันจาก now จริงๆ ไม่ใช่จาก last.t
+          const currentCandleStart = Math.floor(now / tfDuration) * tfDuration
+          const lastCandleStart = Math.floor(last.t / tfDuration) * tfDuration
+          if (currentCandleStart > lastCandleStart) {
+            // ถึง timeframe ใหม่จริงๆ — สร้างแท่งใหม่
+            priceHistory[coin].push({
+              t: currentCandleStart, v: newPrice,
+              open: last.close || last.v,
+              high: newPrice, low: newPrice, close: newPrice
+            })
+            if (priceHistory[coin].length > 200) priceHistory[coin].shift()
+          } else {
+            // ยังอยู่ใน candle เดิม — แค่อัปเดต
+            last.v     = newPrice
+            last.close = newPrice
+            last.high  = Math.max(last.high || newPrice, newPrice)
+            last.low   = Math.min(last.low  || newPrice, newPrice)
+          }
+        }
+      }
+    })
+    updateUI()
+    drawChart()
+    if (pairDropdownOpen) renderDropdownList()
+  } catch(e) { simulatePrices() }
+}
+function simulatePrices() {
+  Object.keys(COINS).forEach(c => {
+    prices[c] = Math.max(prices[c]*(1+(Math.random()-0.48)*0.003), COINS[c].baseUSDT*0.5)
+    priceHistory[c].push({t:Date.now(),v:prices[c]})
+    if(priceHistory[c].length>100)priceHistory[c].shift()
+  })
+  updateUI(); drawChart()
+  if (pairDropdownOpen) renderDropdownList()
+}
+async function fetchHistory(coin) {
+  try {
+    let url
+    if (tradeModeSim) {
+      url = `https://api.binance.com/api/v3/klines?symbol=${coin+currentQuote}&interval=${currentTF}&limit=100`
+    } else {
+      url = `${BACKEND_URL}/klines?symbol=${coin+currentQuote}&interval=${currentTF}&limit=100`
+    }
+    const data = await fetch(url).then(r=>r.json())
+    if (!Array.isArray(data)) return
+    priceHistory[coin] = data.map(k=>({t:k[0],v:parseFloat(k[4]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4])}))
+  } catch(e) {}
+}
+
+// ===== TF =====
+function setTF(tf) {
+  currentTF = tf; botTF = tf
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  fetchHistory(currentCoin).then(()=>{updateUI();drawChart()})
+}
+function setBotTF(tf) {
+  botTF = tf; currentTF = tf
+  document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  toast('📊 เปลี่ยนเป็น '+tf, 'success')
+  fetchHistory(currentCoin).then(()=>{updateUI();drawChart();document.querySelector('.chart-card').scrollIntoView({behavior:'smooth'})})
+}
+function toggleBB() {
+  showBB = !showBB
+  const btn = document.getElementById('bbToggle')
+  btn.textContent = showBB?'BB ✓':'BB ✗'
+  btn.classList.toggle('off', !showBB)
+  drawChart()
+}
+
+// ===== UPDATE UI =====
+function fmt(v) {
+  const isUSD = currentQuote==='USDT' || currentQuote==='USDC'
+  const sym = isUSD ? '$' : ''
+  const suf = !isUSD ? ' '+currentQuote : ''
+  const dec = isUSD ? 2 : 6
+  return sym+Number(v).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec})+suf
+}
+function updateUI() {
+  const coin = currentCoin, price = prices[coin]||COINS[coin].baseUSDT
+  const chg = COINS[coin]._chg||0, isUp = chg>=0
+  document.getElementById('chart-title').textContent = coin+'/'+currentQuote
+  document.getElementById('chart-price').textContent = fmt(price)
+  document.getElementById('chart-price').className = 'chart-price '+(isUp?'up':'down')
+  document.getElementById('s-price').textContent = fmt(price)
+  document.getElementById('s-price').className = 'sv '+(isUp?'up':'down')
+  document.getElementById('s-chg').textContent = (isUp?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%'
+  document.getElementById('s-high').textContent = fmt(COINS[coin]._high||price*1.02)
+  document.getElementById('s-low').textContent  = fmt(COINS[coin]._low||price*0.98)
+  const vol = COINS[coin]._vol; document.getElementById('s-vol').textContent = vol?(currentQuote==='USDT'?'$':'')+Math.floor(vol).toLocaleString():'--'
+  calcTotal()
+  updatePortfolio()
+  updateBBVals()
+  const total = getTotalVal()
+  document.getElementById('hbal').textContent = '$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+}
+function getTotalVal() {
+  let t = cash; Object.keys(holdings).forEach(c=>{t+=(holdings[c]||0)*(prices[c]||COINS[c]?.baseUSDT||0)}); return t
+}
+function updatePortfolio() {
+  document.getElementById('p-cash').textContent = '$'+cash.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+  document.getElementById('p-total').textContent = '$'+getTotalVal().toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+  const keys = Object.keys(holdings).filter(c=>holdings[c]>0)
+  if (!keys.length) { document.getElementById('holdings').innerHTML='<div style="text-align:center;color:var(--muted2);font-size:12px;padding:12px">ยังไม่มี Crypto</div>'; return }
+  document.getElementById('holdings').innerHTML = keys.map(c=>{
+    const val=holdings[c]*(prices[c]||0), base=holdings[c]*(COINS[c]?.baseUSDT||0), pnl=val-base, pct=base?pnl/base*100:0
+    return `<div class="holding"><div style="display:flex;align-items:center;gap:8px"><div class="hicon" style="background:${COINS[c]?.color||'#555'}22;color:${COINS[c]?.color||'#555'}">${c.slice(0,3)}</div><div><div class="hname">${c}</div><div class="hamount">${holdings[c].toFixed(6)}</div></div></div><div><div class="hval">$${val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="hpnl ${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${pct.toFixed(2)}%</div></div></div>`
+  }).join('')
+}
+function renderHistory() {
+  if (!tradeHistory.length) return
+  document.getElementById('hist-list').innerHTML = tradeHistory.slice(0,10).map(h=>{
+    const t=h.time,ts=t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')
+    return `<div class="hist-item"><div style="display:flex;align-items:center;gap:6px"><span class="side-badge ${h.mode}">${h.mode.toUpperCase()}</span><span style="font-family:var(--font-mono);font-size:11px">${h.coin}</span></div><div class="hist-info">${h.amount.toFixed(4)} @ $${h.price.toLocaleString('en-US',{maximumFractionDigits:2})}</div><div class="hist-val" style="color:${h.mode==='buy'?'var(--red)':'var(--green)'}">${h.mode==='buy'?'-':'+'}$${h.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>`
+  }).join('')
+}
+
+// ===== TRADE =====
+function setTradeMode(m) {
+  tradeMode = m
+  document.getElementById('t-buy').classList.toggle('active', m==='buy')
+  document.getElementById('t-sell').classList.toggle('active', m==='sell')
+  const btn = document.getElementById('btn-trade')
+  btn.className = 'btn-trade '+(m==='buy'?'buy':'sell')
+  btn.textContent = (m==='buy'?'ซื้อ ':'ขาย ')+currentCoin
+}
+function setOrderType(t) {
+  orderType = t
+  document.getElementById('ot-market').classList.toggle('active', t==='market')
+  document.getElementById('ot-limit').classList.toggle('active', t==='limit')
+  document.getElementById('limit-wrap').classList.toggle('show', t==='limit')
+  const btn = document.getElementById('btn-trade')
+  btn.textContent = t==='limit'?'ตั้ง Limit '+currentCoin:(tradeMode==='buy'?'ซื้อ ':'ขาย ')+currentCoin
+}
+function setUnit(u) {
+  tradeUnit = u
+  document.getElementById('u-coin').classList.toggle('active', u==='coin')
+  document.getElementById('u-quote').classList.toggle('active', u==='quote')
+  const coin = currentCoin, quote = currentQuote
+  const isUSD2 = quote==='USDT'||quote==='USDC'
+  if (u==='coin') { document.getElementById('trade-unit').textContent=coin; document.getElementById('amt-label').textContent='จำนวน '+coin; document.getElementById('total-label').textContent='มูลค่ารวม' }
+  else { document.getElementById('trade-unit').textContent=quote; document.getElementById('amt-label').textContent='จำนวน '+(isUSD2?'$':'')+quote+' ที่จ่าย'; document.getElementById('total-label').textContent='จะได้รับ' }
+  document.getElementById('trade-amt').value = ''
+  calcTotal()
+}
+function calcTotal() {
+  const amount = parseFloat(document.getElementById('trade-amt').value)||0
+  const price = prices[currentCoin]||0
+  const isUSD = currentQuote==='USDT'||currentQuote==='USDC'
+  if (tradeUnit==='coin') {
+    const total = amount*price
+    const sym=isUSD?'$':'', suf=!isUSD?' '+currentQuote:''
+    const dec=isUSD?2:6
+    document.getElementById('trade-total').textContent = sym+total.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec})+suf
+  } else {
+    const coinAmt = price>0?amount/price:0
+    document.getElementById('trade-total').textContent = '≈ '+coinAmt.toLocaleString('en-US',{minimumFractionDigits:6,maximumFractionDigits:6})+' '+currentCoin
+  }
+}
+// ===== REAL ACCOUNT =====
+async function fetchRealAccount() {
+  if (tradeModeSim) return // ไม่โหลดถ้าเป็นโหมดจำลอง
+  try {
+    const data = await fetch(`${BACKEND_URL}/account`).then(r=>r.json())
+    if (data.balances) {
+      const usdtBal = data.balances.find(b=>b.asset==='USDT')
+      const usdcBal = data.balances.find(b=>b.asset==='USDC')
+      // Use balance based on current quote currency
+      if (currentQuote==='USDC') {
+        const bal = parseFloat(usdcBal?.free||0)
+        if (bal > 0) cash = bal
+      } else {
+        const usdBal = parseFloat(usdtBal?.free||0) + parseFloat(usdcBal?.free||0)
+        if (usdBal > 0) cash = usdBal
+      }
+      data.balances.forEach(b => {
+        const amt = parseFloat(b.free) + parseFloat(b.locked)
+        if (amt > 0 && COINS[b.asset]) holdings[b.asset] = amt
+      })
+      updatePortfolio()
+      toast('✅ โหลดยอดจาก Binance แล้ว', 'success')
+    }
+  } catch(e) {
+    toast('❌ ไม่สามารถโหลดยอดจาก Binance ได้', 'error')
+  }
+}
+
+// Real trade execution via backend
+async function doRealTrade(side, coin, quantity, type='MARKET', price=null) {
+  try {
+    const body = { symbol: coin+currentQuote, side, type, quantity }
+    if (type==='LIMIT' && price) body.price = price
+    const data = await fetch(`${BACKEND_URL}/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(r=>r.json())
+    if (data.code) {
+      toast('❌ Error: '+data.msg, 'error')
+      return false
+    }
+    toast(`✅ Order สำเร็จ! ${side} ${quantity} ${coin}`, 'success')
+    // Refresh account after trade
+    setTimeout(fetchRealAccount, 1000)
+    return true
+  } catch(e) {
+    toast('❌ ไม่สามารถส่ง Order ได้', 'error')
+    return false
+  }
+}
+
+function doTrade() {
+  const amount = parseFloat(document.getElementById('trade-amt').value)
+  if (!amount||amount<=0) { toast('กรุณากรอกจำนวน','error'); return }
+  const price = prices[currentCoin], coin = currentCoin
+  let coinAmt = tradeUnit==='coin'?amount:amount/price
+  let quoteAmt = tradeUnit==='coin'?amount*price:amount
+
+  if (orderType==='limit') {
+    const lp = parseFloat(document.getElementById('limit-price').value)
+    if (!lp||lp<=0) { toast('กรุณากรอกราคา Limit','error'); return }
+    if (!tradeModeSim) {
+      // Real mode — send Limit order to Binance via backend
+      doRealTrade(tradeMode.toUpperCase(), coin, coinAmt, 'LIMIT', lp)
+      document.getElementById('trade-amt').value=''
+      document.getElementById('limit-price').value=''
+      return
+    }
+    // Sim mode
+    if (tradeMode==='buy'&&coinAmt*lp>cash) { toast('เงินไม่พอ!','error'); return }
+    if (tradeMode==='sell'&&(holdings[coin]||0)<coinAmt) { toast('Crypto ไม่พอ!','error'); return }
+    pendingOrders.push({id:Date.now(),mode:tradeMode,coin,amount:coinAmt,limitPrice:lp,time:new Date()})
+    if (tradeMode==='buy') cash -= coinAmt*lp; else holdings[coin]=(holdings[coin]||0)-coinAmt
+    document.getElementById('trade-amt').value=''
+    toast('📋 วาง Limit @ $'+lp.toLocaleString(),'success')
+    renderPending(); updateUI()
+    return
+  }
+
+  if (!tradeModeSim) {
+    // Real mode — send to Binance via backend
+    doRealTrade(tradeMode.toUpperCase(), coin, coinAmt, orderType.toUpperCase(), orderType==='limit'?parseFloat(document.getElementById('limit-price').value):null)
+    document.getElementById('trade-amt').value=''
+    return
+  }
+  // Sim mode
+  if (tradeMode==='buy') {
+    if (quoteAmt>cash) { toast('เงินไม่พอ!','error'); return }
+    cash -= quoteAmt; holdings[coin]=(holdings[coin]||0)+coinAmt
+    toast('✓ ซื้อ '+coinAmt.toFixed(6)+' '+coin,'success')
+  } else {
+    if ((holdings[coin]||0)<coinAmt) { toast('Crypto ไม่พอ!','error'); return }
+    cash += quoteAmt; holdings[coin]-=coinAmt
+    toast('✓ ขาย '+coinAmt.toFixed(6)+' '+coin,'success')
+  }
+  tradeHistory.unshift({mode:tradeMode,coin,amount:coinAmt,price,total:quoteAmt,time:new Date()})
+  saveState()
+  document.getElementById('trade-amt').value=''
+  updateUI(); renderHistory(); drawChart()
+}
+function renderPending() {
+  const wrap = document.getElementById('pending-wrap'), list = document.getElementById('pending-list')
+  if (!pendingOrders.length) { wrap.classList.remove('show'); return }
+  wrap.classList.add('show')
+  list.innerHTML = pendingOrders.map(o=>
+    `<div class="pending-item"><div style="display:flex;align-items:center;gap:5px"><span class="side-badge ${o.mode}">${o.mode.toUpperCase()}</span><span style="font-family:var(--font-mono);font-size:10px">${o.coin} ${o.amount.toFixed(4)} @ $${o.limitPrice.toLocaleString('en-US',{maximumFractionDigits:2})}</span></div><button class="btn-cancel" onclick="cancelOrder(${o.id})">✕</button></div>`
+  ).join('')
+}
+function cancelOrder(id) {
+  const o = pendingOrders.find(x=>x.id===id); if(!o) return
+  if (o.mode==='buy') cash+=o.amount*o.limitPrice; else holdings[o.coin]=(holdings[o.coin]||0)+o.amount
+  pendingOrders = pendingOrders.filter(x=>x.id!==id)
+  renderPending(); updateUI(); toast('ยกเลิก Order แล้ว','error')
+}
+setInterval(()=>{
+  let filled=[]
+  pendingOrders = pendingOrders.filter(o=>{
+    const cp=prices[o.coin]; if(!cp) return true
+    const hit=(o.mode==='buy'&&cp<=o.limitPrice)||(o.mode==='sell'&&cp>=o.limitPrice)
+    if(hit){
+      const total=o.amount*cp
+      if(o.mode==='buy'){holdings[o.coin]=(holdings[o.coin]||0)+o.amount;cash+=(o.limitPrice-cp)*o.amount}
+      else cash+=total
+      tradeHistory.unshift({mode:o.mode,coin:o.coin,amount:o.amount,price:cp,total,time:new Date()})
+      filled.push(o); return false
+    }
+    return true
+  })
+  if(filled.length){filled.forEach(o=>toast('🎯 Limit filled! '+o.coin,'success'));renderHistory();updateUI();renderPending();drawChart()}
+},3000)
+
+// ===== BB CALC =====
+function calcBB(hist, period, mult) {
+  return hist.map((_,i)=>{
+    if(i<period-1) return null
+    const sl=hist.slice(i-period+1,i+1).map(h=>h.v)
+    const sma=sl.reduce((a,b)=>a+b,0)/period
+    const std=Math.sqrt(sl.reduce((a,b)=>a+Math.pow(b-sma,2),0)/period)
+    return {upper:sma+mult*std,middle:sma,lower:sma-mult*std}
+  })
+}
+function updateBBVals() {
+  const hist=priceHistory[currentCoin]
+  if(!hist||hist.length<5) return
+  const period=parseInt(document.getElementById('bot-period').value)||20
+  const mult=parseFloat(document.getElementById('bot-std').value)||2
+  const bb=calcBB(hist,period,mult)
+  const last=bb[bb.length-1]
+  if(!last) return
+  const p=prices[currentCoin]||0
+  document.getElementById('bb-upper').textContent=fmt(last.upper)
+  document.getElementById('bb-mid').textContent=fmt(last.middle)
+  document.getElementById('bb-lower').textContent=fmt(last.lower)
+  document.getElementById('bb-cur').textContent=fmt(p)
+}
+
+// ===== DRAW CHART (candlestick) =====
+function drawChart() {
+  const canvas = document.getElementById('chartCanvas')
+  const wrap = document.getElementById('chartWrap')
+  if (!canvas||!wrap) return
+  const W=wrap.clientWidth||600, H=300
+  if(W===0){setTimeout(drawChart,200);return}
+  canvas.width=W; canvas.height=H
+  const ctx=canvas.getContext('2d')
+  ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,W,H)
+
+  const hist=priceHistory[currentCoin]
+  if(!hist||hist.length<5){
+    ctx.fillStyle='#718096';ctx.font='13px monospace';ctx.textAlign='center'
+    ctx.fillText('กำลังโหลดข้อมูล...',W/2,H/2); return
+  }
+
+  const period=parseInt(document.getElementById('bot-period').value)||20
+  const mult=parseFloat(document.getElementById('bot-std').value)||2
+  const bb=calcBB(hist,period,mult)
+  const PL=70,PR=10,PT=20,PB=28
+  const gW=W-PL-PR, gH=H-PT-PB
+  const n=hist.length
+
+  // Build OHLC — use real data if available, else estimate
+  const candles = hist.map((h,i) => {
+    const prev = hist[i-1]?.v || h.v
+    return {
+      open:  h.open  || prev,
+      high:  h.high  || Math.max(h.open||prev, h.v) * (1+Math.random()*0.002),
+      low:   h.low   || Math.min(h.open||prev, h.v) * (1-Math.random()*0.002),
+      close: h.close || h.v,
+    }
+  })
+
+  // Min/Max across OHLC + BB
+  let allV = candles.flatMap(c=>[c.high,c.low])
+  if(showBB) bb.forEach(b=>{if(b){allV.push(b.upper,b.lower)}})
+  const minV=Math.min(...allV)*0.999, maxV=Math.max(...allV)*1.001
+  const range=maxV-minV||1
+
+  const xC = i => PL + (i+0.5) / n * gW          // center x of candle i
+  const yS = v => PT + (1-(v-minV)/range) * gH
+  const candleW = Math.max(1, gW/n*0.7)           // candle body width
+
+  // Grid
+  ctx.strokeStyle='rgba(0,255,170,0.05)';ctx.lineWidth=0.5
+  for(let i=0;i<=4;i++){const y=PT+(i/4)*gH;ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke()}
+
+  // Y labels
+  ctx.fillStyle='#4a5568';ctx.font='9px monospace';ctx.textAlign='right'
+  for(let i=0;i<=4;i++){
+    const v=maxV-(i/4)*range,y=PT+(i/4)*gH
+    ctx.fillText('$'+v.toLocaleString('en-US',{maximumFractionDigits:0}),PL-3,y+3)
+  }
+
+  // X labels
+  ctx.textAlign='center'
+  const step=Math.floor(n/6)||1
+  for(let i=0;i<n;i+=step){
+    const d=new Date(hist[i].t)
+    const lbl=['1d','1w'].includes(currentTF)?`${d.getMonth()+1}/${d.getDate()}`:
+      ['1h','4h'].includes(currentTF)?`${d.getHours()}:00`:`${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
+    ctx.fillText(lbl,xC(i),H-6)
+  }
+
+  // BB fill + lines
+  if(showBB){
+    ctx.beginPath();let s=false
+    for(let i=0;i<bb.length;i++){if(!bb[i])continue;if(!s){ctx.moveTo(xC(i),yS(bb[i].upper));s=true}else ctx.lineTo(xC(i),yS(bb[i].upper))}
+    for(let i=bb.length-1;i>=0;i--){if(!bb[i])continue;ctx.lineTo(xC(i),yS(bb[i].lower))}
+    ctx.closePath();ctx.fillStyle='rgba(0,255,170,0.04)';ctx.fill()
+    const drawBBLine=(getData,col,dash)=>{
+      ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.setLineDash(dash)
+      let st=false
+      for(let i=0;i<bb.length;i++){if(!bb[i])continue;const v=getData(bb[i]);if(!st){ctx.moveTo(xC(i),yS(v));st=true}else ctx.lineTo(xC(i),yS(v))}
+      ctx.stroke();ctx.setLineDash([])
+    }
+    drawBBLine(b=>b.upper,'rgba(255,68,102,0.85)',[5,4])
+    drawBBLine(b=>b.middle,'rgba(0,204,255,0.75)',[7,4])
+    drawBBLine(b=>b.lower,'rgba(0,255,170,0.85)',[5,4])
+  }
+
+  // Draw candles
+  candles.forEach((c,i) => {
+    const isUp = c.close >= c.open
+    const col = isUp ? '#00ffaa' : '#ff4466'
+    const x = xC(i)
+    const bodyTop    = yS(Math.max(c.open, c.close))
+    const bodyBottom = yS(Math.min(c.open, c.close))
+    const bodyH = Math.max(1, bodyBottom - bodyTop)
+
+    // Wick
+    ctx.strokeStyle = col; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(x, yS(c.high)); ctx.lineTo(x, bodyTop); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(x, bodyBottom); ctx.lineTo(x, yS(c.low)); ctx.stroke()
+
+    // Body
+    ctx.fillStyle = isUp ? '#00ffaa' : '#ff4466'
+    ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH)
+
+    // Body border for doji (tiny body)
+    if(bodyH <= 1){
+      ctx.strokeStyle = col; ctx.lineWidth = 1
+      ctx.strokeRect(x - candleW/2, bodyTop, candleW, 1)
+    }
+  })
+
+  // B/S markers
+  tradeHistory.forEach(t=>{
+    if(t.coin!==currentCoin) return
+    const idx=hist.reduce((best,h,i)=>Math.abs(h.t-t.time.getTime())<Math.abs(hist[best].t-t.time.getTime())?i:best,0)
+    const x=xC(idx)
+    if(t.mode==='buy'){
+      const y=yS(candles[idx].low)-4
+      ctx.beginPath();ctx.moveTo(x,y+16);ctx.lineTo(x-7,y+26);ctx.lineTo(x+7,y+26);ctx.closePath()
+      ctx.fillStyle='#00ffaa';ctx.fill()
+      ctx.fillStyle='#070b0f';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('B',x,y+24)
+    } else {
+      const y=yS(candles[idx].high)+4
+      ctx.beginPath();ctx.moveTo(x,y-16);ctx.lineTo(x-7,y-26);ctx.lineTo(x+7,y-26);ctx.closePath()
+      ctx.fillStyle='#ff4466';ctx.fill()
+      ctx.fillStyle='#fff';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('S',x,y-20)
+    }
+  })
+
+  // Pending Limit Order lines — draw even if slightly outside range
+  pendingOrders.filter(o=>o.coin===currentCoin).forEach(o=>{
+    const lp = o.limitPrice
+    const isBuy = o.mode==='buy'
+    const col = isBuy?'#00ffaa':'#ff4466'
+    // Clamp y to chart area
+    let y = yS(lp)
+    y = Math.max(PT+2, Math.min(PT+gH-2, y))
+
+    // Dashed line
+    ctx.save()
+    ctx.strokeStyle = col
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([6,4])
+    ctx.beginPath()
+    ctx.moveTo(PL, y)
+    ctx.lineTo(W-PR, y)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    // Label background
+    const label = (isBuy?'▲ BUY':'▼ SELL')+' $'+lp.toLocaleString('en-US',{maximumFractionDigits:2})
+    ctx.font = 'bold 9px monospace'
+    const tw = ctx.measureText(label).width
+    ctx.fillStyle = isBuy?'rgba(0,255,170,0.2)':'rgba(255,68,102,0.2)'
+    ctx.fillRect(W-PR-tw-14, y-10, tw+14, 18)
+    // Label text
+    ctx.fillStyle = col
+    ctx.textAlign = 'right'
+    ctx.fillText(label, W-PR-4, y+4)
+
+    // Left marker dot
+    ctx.beginPath()
+    ctx.arc(PL+4, y, 4, 0, Math.PI*2)
+    ctx.fillStyle = col
+    ctx.fill()
+
+    ctx.restore()
+  })
+
+  // Preview line while typing limit price
+  const inputLP = parseFloat(document.getElementById('limit-price')?.value)
+  const ltWrap = document.getElementById('limit-wrap')
+  if(inputLP>0 && ltWrap?.classList.contains('show')){
+    let y = yS(inputLP)
+    y = Math.max(PT+2, Math.min(PT+gH-2, y))
+    ctx.save()
+    ctx.strokeStyle='rgba(255,255,255,0.3)'
+    ctx.lineWidth=1; ctx.setLineDash([3,5])
+    ctx.beginPath(); ctx.moveTo(PL,y); ctx.lineTo(W-PR,y); ctx.stroke()
+    ctx.setLineDash([])
+    ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='9px monospace'; ctx.textAlign='right'
+    ctx.fillText('preview $'+inputLP.toLocaleString('en-US',{maximumFractionDigits:2}), W-PR-4, y-3)
+    ctx.restore()
+  }
+}
+
+// ===== BOT =====
+function addLog(type,msg){
+  const now=new Date(),ts=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0')
+  botLogs.unshift({type,ts,msg})
+  if(botLogs.length>50)botLogs.pop()
+  document.getElementById('bot-log').innerHTML=botLogs.map(l=>`<div class="log-item ${l.type}"><span class="log-time">${l.ts}</span><span class="log-msg">${l.msg}</span></div>`).join('')
+}
+function runBot(){
+  const coin=document.getElementById('bot-coin').value
+  const period=parseInt(document.getElementById('bot-period').value)||20
+  const mult=parseFloat(document.getElementById('bot-std').value)||2
+  const amount=parseFloat(document.getElementById('bot-amt').value)
+  if(!amount||amount<=0) return
+  const hist=priceHistory[coin]
+  if(!hist||hist.length<period){addLog('info','รอข้อมูล...');return}
+  const bb=calcBB(hist,period,mult)
+  const last=bb[bb.length-1]; if(!last) return
+  const price=prices[coin]||0
+  const total=amount*price
+  const isBelow=price<=last.lower, isAbove=price>=last.upper
+  updateBBVals()
+  const maxPos = parseInt(document.getElementById('bot-max-pos').value)||3
+  const openPos = botPositions.filter(p=>p.coin===coin&&!p.closed).length
+  document.getElementById('bot-pos-count').textContent = openPos+' / '+maxPos
+
+  if(isBelow&&!botWasBelow&&openPos<maxPos){
+    if(cash>=total || !tradeModeSim){
+      if(!tradeModeSim){
+        // Real trade via backend
+        doRealTrade('BUY', coin, amount).then(ok => {
+          if(ok){
+            botTrades++; botHasLong=true
+            botPositions.push({coin,amount,buyPrice:price,time:new Date(),closed:false})
+            botLastBuy=price
+            tradeHistory.unshift({mode:'buy',coin,amount,price,total,time:new Date()})
+            addLog('buy',`BUY ไม้ ${openPos+1}/${maxPos} — ${amount} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} ▼ Lower Band`)
+            renderHistory();drawChart()
+          }
+        })
+      } else {
+        // Sim trade
+        cash-=total;holdings[coin]=(holdings[coin]||0)+amount;botTrades++
+        botHasLong=true
+        botPositions.push({coin,amount,buyPrice:price,time:new Date(),closed:false})
+        botLastBuy=price
+        tradeHistory.unshift({mode:'buy',coin,amount,price,total,time:new Date()})
+        addLog('buy',`BUY ไม้ ${openPos+1}/${maxPos} — ${amount} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} ▼ Lower Band`)
+        toast(`🤖 Bot ซื้อไม้ ${openPos+1}/${maxPos} ${coin} @ $${price.toLocaleString()}`,'success')
+        updateUI();renderHistory();drawChart()
+      }
+    } else addLog('info','สัญญาณซื้อ แต่เงินไม่พอ')
+  } else if(isBelow&&!botWasBelow&&openPos>=maxPos){
+    addLog('info',`⛔ ครบ ${maxPos} ไม้แล้ว — ไม่ซื้อเพิ่ม`)
+  } else if(isAbove&&!botWasAbove&&botHasLong){
+    const hold=holdings[coin]||0
+    const closeAmt=Math.min(amount,hold)
+    if(closeAmt>0){
+      // ตรวจสอบว่าราคาตอนนี้ >= ราคาที่ซื้อ (กำไร) ก่อนขาย
+      const feeBuffer = botLastBuy * 0.002 // 0.2% cover buy+sell fee (0.1% each)
+      if(price >= botLastBuy + feeBuffer){
+        const closeTotal=closeAmt*price; cash+=closeTotal; holdings[coin]=hold-closeAmt
+        const pnl=(price-botLastBuy)*closeAmt; botPnl+=pnl; if(pnl>0)botWins++; botTrades++; botHasLong=holdings[coin]>0
+        tradeHistory.unshift({mode:'sell',coin,amount:closeAmt,price,total:closeTotal,time:new Date()})
+        addLog('sell',`CLOSE ${closeAmt.toFixed(6)} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} | P&L: +$${pnl.toFixed(2)} ✅`)
+        toast(`🤖 Bot ปิด Long | 💰+$${pnl.toFixed(2)}`,'success')
+        updateUI();renderHistory();drawChart()
+      } else {
+        // ขาดทุน — รอต่อ
+        const needed = botLastBuy + feeBuffer
+        addLog('info',`⏳ Upper Band แต่ยังไม่คุ้ม fee — รอราคา > $${needed.toLocaleString('en-US',{maximumFractionDigits:2})} (ตอนนี้ $${price.toLocaleString('en-US',{maximumFractionDigits:2})})`)
+      }
+    } else addLog('info','ราคาแตะ Upper Band แต่ไม่มี Long')
+  } else {
+    addLog('info',`รอ... $${price.toLocaleString('en-US',{maximumFractionDigits:2})} | L:$${last.lower.toFixed(2)} | U:$${last.upper.toFixed(2)}`)
+  }
+  botWasBelow = isBelow
+  saveState()
+  // ถ้ายังมีไม้ที่ขาดทุนอยู่ ให้ reset botWasAbove เพื่อให้ check ใหม่รอบหน้า
+  const stillLosing = botPositions.filter(p=>p.coin===coin&&!p.closed&&price<p.buyPrice+p.buyPrice*0.002).length>0
+  if (isAbove && stillLosing) {
+    botWasAbove = false
+  } else {
+    botWasAbove = isAbove
+  }
+  document.getElementById('b-trades').textContent=botTrades
+  document.getElementById('b-pnl').textContent=(botPnl>=0?'+':'')+' $'+botPnl.toFixed(2)
+  document.getElementById('b-pnl').style.color=botPnl>=0?'var(--green)':'var(--red)'
+  document.getElementById('b-win').textContent=botTrades>0?Math.round(botWins/botTrades*100)+'%':'0%'
+}
+function startBot(){
+  const amount=parseFloat(document.getElementById('bot-amt').value)
+  if(!amount||amount<=0){toast('กรุณากรอกจำนวน','error');return}
+  botRunning=true;botWasBelow=false;botWasAbove=false
+  botPositions=[]
+  botHasLong=(holdings[document.getElementById('bot-coin').value]||0)>0
+  const coin=document.getElementById('bot-coin').value
+  addLog('info',`Bot เริ่ม — ${coin} | Period:${document.getElementById('bot-period').value} | Std:${document.getElementById('bot-std').value}`)
+  document.getElementById('bot-status').className='bot-status on'
+  document.getElementById('bot-status-txt').textContent='กำลังทำงาน'
+  document.getElementById('bot-btn').innerHTML='<button class="btn-bot-stop" onclick="stopBot()">■ หยุด Bot</button>'
+  botInterval=setInterval(runBot,5000); runBot()
+}
+function stopBot(){
+  botRunning=false;clearInterval(botInterval);botInterval=null
+  document.getElementById('bot-status').className='bot-status off'
+  document.getElementById('bot-status-txt').textContent='หยุด'
+  document.getElementById('bot-btn').innerHTML='<button class="btn-bot-start" onclick="startBot()">▶ เริ่ม Bot</button>'
+  addLog('info','Bot หยุดทำงาน')
+}
+setInterval(()=>{if(botRunning) updateBBVals()},5000)
+
+// ===== SAVE / LOAD STATE =====
+function getSaveKey() {
+  // แยก key ตาม user email กัน
+  const email = document.getElementById('user-email')?.textContent || 'guest'
+  return 'ct_state_' + email.replace(/[^a-z0-9]/gi,'_')
+}
+
+function saveState() {
+  try {
+    const state = {
+      // Portfolio
+      cash, holdings, tradeHistory: tradeHistory.slice(0,100), pendingOrders,
+      // Bot config & state
+      botRunning,
+      botCoin:     document.getElementById('bot-coin')?.value || 'BTC',
+      botAmt:      document.getElementById('bot-amt')?.value || '',
+      botPeriod:   document.getElementById('bot-period')?.value || '20',
+      botStd:      document.getElementById('bot-std')?.value || '2',
+      botMaxPos:   document.getElementById('bot-maxpos')?.value || '3',
+      botPositions, botTrades, botWins, botPnl, botLastBuy,
+      botWasBelow, botWasAbove, botHasLong, botLogs,
+      // Current view
+      currentCoin, currentQuote, currentTF,
+      tradeMethod, tradeModeSim,
+      savedAt: new Date().toISOString()
+    }
+    localStorage.setItem(getSaveKey(), JSON.stringify(state))
+  } catch(e) { console.warn('saveState failed', e) }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(getSaveKey())
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch(e) { return null }
+}
+
+function clearSavedState() {
+  localStorage.removeItem(getSaveKey())
+}
+
+function checkResume() {
+  const state = loadState()
+  if (!state) return
+  // ถ้าบันทึกไว้นานเกิน 7 วัน ไม่ถามแล้ว
+  const age = Date.now() - new Date(state.savedAt).getTime()
+  if (age > 7 * 24 * 3600 * 1000) { clearSavedState(); return }
+
+  const savedAt = new Date(state.savedAt).toLocaleString('th-TH')
+  const wasBotRunning = state.botRunning
+  const totalVal = state.cash + Object.entries(state.holdings||{}).reduce((s,[c,a])=>s+(a*(prices[c]||0)),0)
+  const msg = `พบข้อมูลที่บันทึกไว้\n\nวันที่: ${savedAt}\nเงินสด: $${state.cash?.toFixed(2)||'?'}\nBot: ${wasBotRunning?'กำลังรัน':'หยุด'}\n\nต้องการรันต่อจากที่ค้างไว้มั้ย?`
+
+  // แสดง modal ถาม
+  showResumeModal(state, savedAt, wasBotRunning)
+}
+
+function showResumeModal(state, savedAt, wasBotRunning) {
+  const modal = document.getElementById('resume-modal')
+  if (!modal) return
+  document.getElementById('resume-date').textContent = savedAt
+  document.getElementById('resume-cash').textContent = '$' + (state.cash||0).toFixed(2)
+  document.getElementById('resume-bot').textContent = wasBotRunning ? '🟢 กำลังรัน' : '🔴 หยุด'
+  document.getElementById('resume-trades').textContent = state.botTrades || 0
+  modal.classList.remove('hidden')
+
+  document.getElementById('btn-resume-yes').onclick = () => {
+    modal.classList.add('hidden')
+    applyState(state)
+  }
+  document.getElementById('btn-resume-no').onclick = () => {
+    modal.classList.add('hidden')
+    clearSavedState()
+  }
+}
+
+function applyState(state) {
+  // restore portfolio
+  cash = state.cash ?? 10000
+  holdings = state.holdings ?? {}
+  tradeHistory = state.tradeHistory ?? []
+  pendingOrders = state.pendingOrders ?? []
+  // restore bot state
+  botPositions = state.botPositions ?? []
+  botTrades = state.botTrades ?? 0
+  botWins = state.botWins ?? 0
+  botPnl = state.botPnl ?? 0
+  botLastBuy = state.botLastBuy ?? 0
+  botWasBelow = state.botWasBelow ?? false
+  botWasAbove = state.botWasAbove ?? false
+  botHasLong = state.botHasLong ?? false
+  botLogs = state.botLogs ?? []
+  // restore view
+  currentCoin = state.currentCoin || 'BTC'
+  currentQuote = state.currentQuote || 'USDT'
+  currentTF = state.currentTF || '4h'
+  // restore bot config UI
+  if (state.botCoin)   { const el=document.getElementById('bot-coin');   if(el) el.value=state.botCoin }
+  if (state.botAmt)    { const el=document.getElementById('bot-amt');    if(el) el.value=state.botAmt }
+  if (state.botPeriod) { const el=document.getElementById('bot-period'); if(el) el.value=state.botPeriod }
+  if (state.botStd)    { const el=document.getElementById('bot-std');    if(el) el.value=state.botStd }
+  if (state.botMaxPos) { const el=document.getElementById('bot-maxpos');if(el) el.value=state.botMaxPos }
+  // restore logs UI
+  if (botLogs.length) {
+    document.getElementById('bot-log').innerHTML = botLogs.map(l=>
+      `<div class="log-item ${l.type}"><span class="log-time">${l.ts}</span><span class="log-msg">${l.msg}</span></div>`
+    ).join('')
+  }
+  updateUI()
+  drawChart()
+  toast('โหลดข้อมูลเดิมสำเร็จ ✅', 'success')
+  // รีสตาร์ท bot ถ้ามันรันอยู่ก่อนหน้า
+  if (state.botRunning) {
+    setTimeout(() => {
+      addLog('info', 'Bot รีสตาร์ทอัตโนมัติหลังจากระบบกลับมา')
+      botRunning = true
+      document.getElementById('bot-status').className = 'bot-status on'
+      document.getElementById('bot-status-txt').textContent = 'กำลังทำงาน'
+      document.getElementById('bot-btn').innerHTML = '<button class="btn-bot-stop" onclick="stopBot()">■ หยุด Bot</button>'
+      botInterval = setInterval(runBot, 5000)
+      runBot()
+    }, 1000)
+  }
+}
+
+// Auto-save ทุก 10 วินาที
+setInterval(() => {
+  if (document.getElementById('page-trade')?.classList.contains('active')) saveState()
+}, 10000)
+
+// ===== TOAST =====
+function toast(msg,type='success'){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show'
+  setTimeout(()=>t.classList.remove('show'),3000)
+}
+
+// Init on page load - draw chart when chartWrap has size
+setInterval(()=>{
+  const w=document.getElementById('chartWrap')
+  if(w&&w.clientWidth>0&&document.getElementById('page-trade').classList.contains('active')){
+    if(document.getElementById('chartCanvas').width!==w.clientWidth) drawChart()
+  }
+},500)
+</script>
+
+  <!-- Resume Modal -->
+  <div class="overlay hidden" id="resume-modal" style="z-index:3000">
+    <div class="overlay-card" style="max-width:400px">
+      <div style="font-size:32px;margin-bottom:12px">💾</div>
+      <div class="overlay-title">พบข้อมูลที่บันทึกไว้</div>
+      <div class="overlay-sub">ต้องการรันต่อจากที่ค้างไว้มั้ย?</div>
+      <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:20px;text-align:left">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">บันทึกเมื่อ</div>
+            <div style="font-size:13px;font-family:var(--font-mono)" id="resume-date">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">เงินสด</div>
+            <div style="font-size:13px;font-family:var(--font-mono);color:var(--accent)" id="resume-cash">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">สถานะ Bot</div>
+            <div style="font-size:13px" id="resume-bot">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">เทรดทั้งหมด</div>
+            <div style="font-size:13px;font-family:var(--font-mono)" id="resume-trades">--</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="btn-submit" id="btn-resume-yes" style="background:linear-gradient(135deg,var(--accent),#9f7aea)">
+          <span class="btn-text">✅ รันต่อเลย</span>
+        </button>
+        <button class="btn-submit" id="btn-resume-no" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2)">
+          <span class="btn-text">🗑 เริ่มใหม่</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
