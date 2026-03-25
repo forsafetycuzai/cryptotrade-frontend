@@ -977,16 +977,21 @@ async function fetchPrices() {
       // ใช้ /api/v3/ticker/24hr แบบ single symbol ถ้ามีแค่ 1 ตัว (เบากว่ามาก)
       if (allSymbols.length === 1) {
         const d = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${allSymbols[0]}`).then(r=>r.json())
-        data = [d]
+        // Binance ส่งกลับ object เดี่ยว ต้องเช็คว่ามี symbol ก่อน
+        data = d && d.symbol ? [d] : []
       } else {
         const url = 'https://api.binance.com/api/v3/ticker/24hr?symbols=['+allSymbols.map(p=>'"'+p+'"').join(',')+']'
-        data = await fetch(url).then(r=>r.json())
+        const res = await fetch(url).then(r=>r.json())
+        // ถ้า Binance ส่ง error object แทน array ให้ใช้ array ว่าง
+        data = Array.isArray(res) ? res : []
       }
     } else {
       // Real mode: fetch via backend
-      data = await fetch(`${BACKEND_URL}/prices?symbols=${allSymbols.join(',')}`).then(r=>r.json())
+      const res = await fetch(`${BACKEND_URL}/prices?symbols=${allSymbols.join(',')}`).then(r=>r.json())
+      data = Array.isArray(res) ? res : []
     }
     data.forEach(d => {
+      if (!d || !d.symbol) return
       const pair = PAIRS.find(p=>p.coin+p.quote===d.symbol)
       if (!pair) return
       const coin = pair.coin
