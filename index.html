@@ -1177,14 +1177,20 @@ function calcTotal() {
   }
 }
 // ===== REAL ACCOUNT =====
-async function fetchRealAccount() {
+async function fetchRealAccount(retry=0) {
   if (tradeModeSim) return // ไม่โหลดถ้าเป็นโหมดจำลอง
+  // แสดง loading ถ้าเป็นครั้งแรก
+  if (retry === 0) {
+    document.getElementById('p-cash').textContent = 'กำลังโหลด...'
+    toast('⏳ กำลังเชื่อมต่อ Binance...', 'success')
+  }
   try {
-    const data = await fetch(`${BACKEND_URL}/account`).then(r=>r.json())
+    const res = await fetch(`${BACKEND_URL}/account`)
+    if (!res.ok) throw new Error('HTTP '+res.status)
+    const data = await res.json()
     if (data.balances) {
       const usdtBal = data.balances.find(b=>b.asset==='USDT')
       const usdcBal = data.balances.find(b=>b.asset==='USDC')
-      // Use balance based on current quote currency
       if (currentQuote==='USDC') {
         const bal = parseFloat(usdcBal?.free||0)
         if (bal > 0) cash = bal
@@ -1192,15 +1198,26 @@ async function fetchRealAccount() {
         const usdBal = parseFloat(usdtBal?.free||0) + parseFloat(usdcBal?.free||0)
         if (usdBal > 0) cash = usdBal
       }
+      // reset holdings ก่อน แล้วค่อยใส่ใหม่จาก Binance
+      holdings = {}
       data.balances.forEach(b => {
         const amt = parseFloat(b.free) + parseFloat(b.locked)
-        if (amt > 0 && COINS[b.asset]) holdings[b.asset] = amt
+        if (amt > 0.000001 && COINS[b.asset]) holdings[b.asset] = amt
       })
-      updatePortfolio()
+      updateUI()
       toast('✅ โหลดยอดจาก Binance แล้ว', 'success')
+    } else if (data.code) {
+      toast('❌ Binance Error: ' + data.msg, 'error')
     }
   } catch(e) {
-    toast('❌ ไม่สามารถโหลดยอดจาก Binance ได้', 'error')
+    // Render อาจกำลัง wake up — retry สูงสุด 5 ครั้ง
+    if (retry < 5) {
+      const wait = (retry+1) * 3000 // 3, 6, 9, 12, 15 วิ
+      toast(`⏳ Render กำลังตื่น รอ ${(wait/1000)}s... (${retry+1}/5)`, 'success')
+      setTimeout(() => fetchRealAccount(retry+1), wait)
+    } else {
+      toast('❌ เชื่อมต่อ Backend ไม่ได้ ลองรีเฟรชหน้าเว็บ', 'error')
+    }
   }
 }
 
