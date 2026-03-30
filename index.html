@@ -1585,24 +1585,33 @@ function runBot(){
   } else if(isBelow&&!botWasBelow&&openPos>=maxPos){
     addLog('info',`⛔ ครบ ${maxPos} ไม้แล้ว — ไม่ซื้อเพิ่ม`)
   } else if(isAbove&&!botWasAbove&&botHasLong){
-    const hold=holdings[coin]||0
-    const closeAmt=Math.min(amount,hold)
+    // ใช้ botPositions เท่านั้น ไม่แตะ holdings เดิม
+    const openBotPos = botPositions.filter(p=>p.coin===coin&&!p.closed)
+    const closeAmt = openBotPos.reduce((s,p)=>s+p.amount, 0)
     if(closeAmt>0){
-      // ตรวจสอบว่าราคาตอนนี้ >= ราคาที่ซื้อ (กำไร) ก่อนขาย
-      const feeBuffer = botLastBuy * 0.002 // 0.2% cover buy+sell fee (0.1% each)
+      const feeBuffer = botLastBuy * 0.002
       if(price >= botLastBuy + feeBuffer){
-        const closeTotal=closeAmt*price; cash+=closeTotal; holdings[coin]=hold-closeAmt
-        const pnl=(price-botLastBuy)*closeAmt; botPnl+=pnl; if(pnl>0)botWins++; botTrades++; botHasLong=holdings[coin]>0
+        const closeTotal = closeAmt * price
+        const pnl = (price-botLastBuy)*closeAmt
+        openBotPos.forEach(p=>p.closed=true)
+        botPnl+=pnl; if(pnl>0)botWins++; botTrades++; botHasLong=false
+        if(tradeModeSim){
+          cash+=closeTotal
+          holdings[coin]=Math.max(0,(holdings[coin]||0)-closeAmt)
+        } else {
+          doRealTrade('SELL', coin, closeAmt).then(ok=>{
+            if(ok) setTimeout(fetchRealAccount, 2000)
+          })
+        }
         tradeHistory.unshift({mode:'sell',coin,amount:closeAmt,price,total:closeTotal,time:new Date()})
         addLog('sell',`CLOSE ${closeAmt.toFixed(6)} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} | P&L: +$${pnl.toFixed(2)} ✅`)
         toast(`🤖 Bot ปิด Long | 💰+$${pnl.toFixed(2)}`,'success')
         updateUI();renderHistory();drawChart()
       } else {
-        // ขาดทุน — รอต่อ
         const needed = botLastBuy + feeBuffer
         addLog('info',`⏳ Upper Band แต่ยังไม่คุ้ม fee — รอราคา > $${needed.toLocaleString('en-US',{maximumFractionDigits:2})} (ตอนนี้ $${price.toLocaleString('en-US',{maximumFractionDigits:2})})`)
       }
-    } else addLog('info','ราคาแตะ Upper Band แต่ไม่มี Long')
+    } else addLog('info','ราคาแตะ Upper Band แต่ Bot ยังไม่มี Long')
   } else {
     addLog('info',`รอ... $${price.toLocaleString('en-US',{maximumFractionDigits:2})} | L:$${last.lower.toFixed(2)} | U:$${last.upper.toFixed(2)}`)
   }
@@ -1663,7 +1672,7 @@ function saveState() {
       botStd:      document.getElementById('bot-std')?.value || '2',
       botMaxPos:   document.getElementById('bot-maxpos')?.value || '3',
       botPositions, botTrades, botWins, botPnl, botLastBuy,
-      botWasBelow, botWasAbove, botHasLong, botLogs,
+      botWasBelow, botWasAbove, botLogs,
       // Current view
       currentCoin, currentQuote, currentTF,
       tradeMethod, tradeModeSim,
@@ -1734,7 +1743,7 @@ function applyState(state) {
   botLastBuy = state.botLastBuy ?? 0
   botWasBelow = state.botWasBelow ?? false
   botWasAbove = state.botWasAbove ?? false
-  botHasLong = state.botHasLong ?? false
+  botHasLong = false // reset เสมอ ป้องกันขายของเดิม
   botLogs = state.botLogs ?? []
   // restore view
   currentCoin = state.currentCoin || 'BTC'
