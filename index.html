@@ -1625,7 +1625,8 @@ function startBot(){
   if(!amount||amount<=0){toast('กรุณากรอกจำนวน','error');return}
   botRunning=true;botWasBelow=false;botWasAbove=false
   botPositions=[]
-  botHasLong=(holdings[document.getElementById('bot-coin').value]||0)>0
+  // ไม่นับ holdings เดิมที่มีอยู่ใน Binance — Bot จะซื้อเองจากศูนย์เท่านั้น
+  botHasLong=false
   const coin=document.getElementById('bot-coin').value
   addLog('info',`Bot เริ่ม — ${coin} | Period:${document.getElementById('bot-period').value} | Std:${document.getElementById('bot-std').value}`)
   document.getElementById('bot-status').className='bot-status on'
