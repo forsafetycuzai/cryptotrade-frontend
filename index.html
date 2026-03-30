@@ -1178,45 +1178,43 @@ function calcTotal() {
 }
 // ===== REAL ACCOUNT =====
 async function fetchRealAccount(retry=0) {
-  if (tradeModeSim) return // ไม่โหลดถ้าเป็นโหมดจำลอง
-  // แสดง loading ถ้าเป็นครั้งแรก
-  if (retry === 0) {
-    document.getElementById('p-cash').textContent = 'กำลังโหลด...'
-    toast('⏳ กำลังเชื่อมต่อ Binance...', 'success')
-  }
+  if (tradeModeSim) return
+  if (retry === 0) toast('⏳ กำลังโหลดยอดจาก Binance...', 'success')
   try {
     const res = await fetch(`${BACKEND_URL}/account`)
     if (!res.ok) throw new Error('HTTP '+res.status)
-    const data = await res.json()
-    if (data.balances) {
-      const usdtBal = data.balances.find(b=>b.asset==='USDT')
-      const usdcBal = data.balances.find(b=>b.asset==='USDC')
+    const raw = await res.json()
+    // รองรับทั้ง {balances:[]} และ {data:{balances:[]}}
+    const account = raw.data || raw
+    const balances = account.balances
+    if (balances && Array.isArray(balances)) {
+      const usdtBal  = balances.find(b=>b.asset==='USDT')
+      const usdcBal  = balances.find(b=>b.asset==='USDC')
+      const fdusdBal = balances.find(b=>b.asset==='FDUSD')
       if (currentQuote==='USDC') {
-        const bal = parseFloat(usdcBal?.free||0)
-        if (bal > 0) cash = bal
+        cash = parseFloat(usdcBal?.free||0)
+      } else if (currentQuote==='FDUSD') {
+        cash = parseFloat(fdusdBal?.free||0)
       } else {
-        const usdBal = parseFloat(usdtBal?.free||0) + parseFloat(usdcBal?.free||0)
-        if (usdBal > 0) cash = usdBal
+        cash = parseFloat(usdtBal?.free||0) + parseFloat(usdcBal?.free||0)
       }
-      // reset holdings ก่อน แล้วค่อยใส่ใหม่จาก Binance
       holdings = {}
-      data.balances.forEach(b => {
+      balances.forEach(b => {
         const amt = parseFloat(b.free) + parseFloat(b.locked)
         if (amt > 0.000001 && COINS[b.asset]) holdings[b.asset] = amt
       })
       updateUI()
       toast('✅ โหลดยอดจาก Binance แล้ว', 'success')
-    } else if (data.code) {
-      toast('❌ Binance Error: ' + data.msg, 'error')
+    } else if (account.code) {
+      toast('❌ Binance Error: ' + account.msg, 'error')
     }
   } catch(e) {
-    // Render อาจกำลัง wake up — retry สูงสุด 5 ครั้ง
     if (retry < 5) {
-      const wait = (retry+1) * 3000 // 3, 6, 9, 12, 15 วิ
-      toast(`⏳ Render กำลังตื่น รอ ${(wait/1000)}s... (${retry+1}/5)`, 'success')
+      const wait = (retry+1) * 3000
+      toast(`⏳ กำลังเชื่อมต่อ... (${retry+1}/5)`, 'success')
       setTimeout(() => fetchRealAccount(retry+1), wait)
     } else {
-      toast('❌ เชื่อมต่อ Backend ไม่ได้ ลองรีเฟรชหน้าเว็บ', 'error')
+      toast('❌ เชื่อมต่อ Backend ไม่ได้', 'error')
     }
   }
 }
