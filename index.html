@@ -1372,15 +1372,14 @@ function drawChart() {
   const gW=W-PL-PR, gH=H-PT-PB
   const n=hist.length
 
-  // Build OHLC — use real data if available, else estimate
+  // Build OHLC — use real kline data only, no random estimation
   const candles = hist.map((h,i) => {
-    const prev = hist[i-1]?.v || h.v
-    return {
-      open:  h.open  || prev,
-      high:  h.high  || Math.max(h.open||prev, h.v) * (1+Math.random()*0.002),
-      low:   h.low   || Math.min(h.open||prev, h.v) * (1-Math.random()*0.002),
-      close: h.close || h.v,
-    }
+    const prev = hist[i-1]?.close || hist[i-1]?.v || h.v
+    const o = h.open  || prev
+    const c = h.close || h.v
+    const hi = h.high  || Math.max(o, c)
+    const lo = h.low   || Math.min(o, c)
+    return { open:o, high:hi, low:lo, close:c }
   })
 
   // Min/Max across OHLC + BB
