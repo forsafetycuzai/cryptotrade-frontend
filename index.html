@@ -258,6 +258,8 @@ input::placeholder{color:var(--muted2);opacity:0.6}
 .hist-val{font-family:var(--font-mono);font-size:11px;font-weight:700}
 
 /* Bot */
+.bot-mode-tab{flex:1;padding:6px;border:none;border-radius:6px;background:none;color:var(--muted2);font-family:var(--font-body);font-size:11px;cursor:pointer;transition:all 0.2s}
+.bot-mode-tab.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,0.4)}
 .bot-status{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;font-weight:700}
 .bot-status.on{color:var(--green)}
 .bot-status.off{color:var(--muted2)}
@@ -599,7 +601,40 @@ input::placeholder{color:var(--muted2);opacity:0.6}
             <span style="color:var(--muted2)">ไม้ที่เปิดอยู่</span>
             <span id="bot-pos-count" style="color:var(--accent)">0 / 3</span>
           </div>
-          <div id="bot-btn"><button class="btn-bot-start" onclick="startBot()">▶ เริ่ม Bot</button></div>
+          <!-- Toggle: Browser Bot / Server Bot -->
+          <div style="display:flex;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:10px;gap:2px">
+            <button id="toggle-browser-bot" class="bot-mode-tab active" onclick="setBotMode('browser')">🖥️ Browser Bot</button>
+            <button id="toggle-server-bot" class="bot-mode-tab" onclick="setBotMode('server')">☁️ Server Bot 24/7</button>
+          </div>
+          <!-- Browser Bot button -->
+          <div id="bot-btn-browser">
+            <div id="bot-btn"><button class="btn-bot-start" onclick="startBot()">▶ เริ่ม Bot</button></div>
+          </div>
+          <!-- Server Bot UI -->
+          <div id="bot-btn-server" style="display:none">
+            <div id="server-bot-status" style="background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;align-items:center;justify-content:space-between">
+              <span style="color:var(--muted2)">สถานะ Server Bot</span>
+              <span id="server-bot-status-txt" style="font-family:var(--font-mono);color:var(--muted2)">ไม่ได้รัน</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <button class="btn-bot-start" onclick="startServerBot()" id="server-bot-start-btn">▶ เริ่ม Server Bot</button>
+              <button class="btn-bot-stop" onclick="stopServerBot()" id="server-bot-stop-btn" style="display:none">■ หยุด Server Bot</button>
+              <button onclick="resetServerBot()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;color:var(--muted2);cursor:pointer">🔄 รีเซ็ต</button>
+              <button onclick="fetchServerBotStatus()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;color:var(--muted2);cursor:pointer">🔃 รีเฟรช</button>
+            </div>
+            <div style="background:var(--surface2);border-radius:7px;padding:8px 10px;margin-bottom:8px;font-family:var(--font-mono);font-size:11px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="color:var(--muted2)">ไม้เปิดอยู่</span><span id="server-pos-count" style="color:var(--accent)">0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="color:var(--muted2)">เทรดทั้งหมด</span><span id="server-trades">0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--muted2)">P&L รวม</span><span id="server-pnl" style="color:var(--green)">$0.00</span>
+              </div>
+            </div>
+            <div class="bot-log" id="server-bot-log"><div class="log-item info"><span class="log-time">--:--</span><span class="log-msg">Server Bot พร้อมทำงาน</span></div></div>
+          </div>
           <div class="bot-stats">
             <div class="bstat"><div class="bsl">เทรด</div><div class="bsv" id="b-trades">0</div></div>
             <div class="bstat"><div class="bsl">P&L</div><div class="bsv" id="b-pnl">$0</div></div>
@@ -1686,6 +1721,79 @@ function stopBot(){
   addLog('info','Bot หยุดทำงาน')
 }
 setInterval(()=>{if(botRunning) updateBBVals()},5000)
+
+// ===== SERVER BOT =====
+let serverBotMode = 'browser'
+let serverBotPollInterval = null
+
+function setBotMode(mode) {
+  serverBotMode = mode
+  document.getElementById('toggle-browser-bot').classList.toggle('active', mode==='browser')
+  document.getElementById('toggle-server-bot').classList.toggle('active', mode==='server')
+  document.getElementById('bot-btn-browser').style.display = mode==='browser' ? 'block' : 'none'
+  document.getElementById('bot-btn-server').style.display = mode==='server' ? 'block' : 'none'
+  if (mode==='server') {
+    fetchServerBotStatus()
+    if (!serverBotPollInterval) serverBotPollInterval = setInterval(fetchServerBotStatus, 10000)
+  } else {
+    clearInterval(serverBotPollInterval); serverBotPollInterval = null
+  }
+}
+
+async function fetchServerBotStatus() {
+  try {
+    const data = await fetch(`${BACKEND_URL}/bot/status`).then(r=>r.json())
+    const running = data.running
+    document.getElementById('server-bot-status-txt').textContent = running ? '🟢 กำลังรัน' : '🔴 หยุด'
+    document.getElementById('server-bot-status-txt').style.color = running ? 'var(--green)' : 'var(--muted2)'
+    document.getElementById('server-bot-start-btn').style.display = running ? 'none' : 'block'
+    document.getElementById('server-bot-stop-btn').style.display = running ? 'block' : 'none'
+    document.getElementById('server-pos-count').textContent = data.openPos || 0
+    document.getElementById('server-trades').textContent = data.trades || 0
+    const pnl = data.pnl || 0
+    document.getElementById('server-pnl').textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2)
+    document.getElementById('server-pnl').style.color = pnl>=0 ? 'var(--green)' : 'var(--red)'
+    if (data.logs && data.logs.length) {
+      document.getElementById('server-bot-log').innerHTML = data.logs.map(l=>
+        `<div class="log-item ${l.type}"><span class="log-time">${l.ts}</span><span class="log-msg">${l.msg}</span></div>`
+      ).join('')
+    }
+  } catch(e) { document.getElementById('server-bot-status-txt').textContent = '⚠️ เชื่อมต่อไม่ได้' }
+}
+
+async function startServerBot() {
+  const coin   = document.getElementById('bot-coin').value
+  const quote  = currentQuote
+  const amount = document.getElementById('bot-amt').value
+  const period = document.getElementById('bot-period').value
+  const std    = document.getElementById('bot-std').value
+  const maxPos = document.getElementById('bot-max-pos').value
+  try {
+    const data = await fetch(`${BACKEND_URL}/bot/start`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({coin,quote,amount,period,std,maxPos})
+    }).then(r=>r.json())
+    toast(data.ok ? '☁️ Server Bot เริ่มแล้ว! รัน 24/7' : '❌ '+data.msg, data.ok?'success':'error')
+    fetchServerBotStatus()
+  } catch(e) { toast('❌ เชื่อมต่อ Backend ไม่ได้','error') }
+}
+
+async function stopServerBot() {
+  try {
+    const data = await fetch(`${BACKEND_URL}/bot/stop`, {method:'POST'}).then(r=>r.json())
+    toast(data.ok ? '⏹ Server Bot หยุดแล้ว' : '❌ '+data.msg, data.ok?'success':'error')
+    fetchServerBotStatus()
+  } catch(e) { toast('❌ เชื่อมต่อ Backend ไม่ได้','error') }
+}
+
+async function resetServerBot() {
+  try {
+    await fetch(`${BACKEND_URL}/bot/reset`, {method:'POST'})
+    toast('🔄 รีเซ็ต Server Bot แล้ว','success')
+    fetchServerBotStatus()
+  } catch(e) { toast('❌ เชื่อมต่อ Backend ไม่ได้','error') }
+}
 
 // ===== SAVE / LOAD STATE =====
 function getSaveKey() {
