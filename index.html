@@ -1632,12 +1632,46 @@ function runBot(){
 function startBot(){
   const amount=parseFloat(document.getElementById('bot-amt').value)
   if(!amount||amount<=0){toast('กรุณากรอกจำนวน','error');return}
-  botRunning=true;botWasBelow=false;botWasAbove=false
-  botPositions=[]
-  // ไม่นับ holdings เดิมที่มีอยู่ใน Binance — Bot จะซื้อเองจากศูนย์เท่านั้น
-  botHasLong=false
+  // เช็คว่ามี positions ที่ค้างอยู่ไหม ถ้ามีให้ถามก่อน
   const coin=document.getElementById('bot-coin').value
-  addLog('info',`Bot เริ่ม — ${coin} | Period:${document.getElementById('bot-period').value} | Std:${document.getElementById('bot-std').value}`)
+  const savedPositions = botPositions.filter(p=>p.coin===coin&&!p.closed)
+  if(savedPositions.length>0){
+    showBotResumeModal(coin, savedPositions.length)
+    return
+  }
+  _doStartBot(false)
+}
+
+function showBotResumeModal(coin, posCount){
+  const modal = document.getElementById('bot-resume-modal')
+  if(!modal) return
+  document.getElementById('bot-resume-coin').textContent = coin
+  document.getElementById('bot-resume-pos').textContent = posCount + ' ไม้'
+  document.getElementById('bot-resume-pnl').textContent = (botPnl>=0?'+':'')+' $'+botPnl.toFixed(2)
+  modal.classList.remove('hidden')
+  document.getElementById('btn-bot-resume-yes').onclick = () => {
+    modal.classList.add('hidden')
+    _doStartBot(true) // รันต่อจากเดิม
+  }
+  document.getElementById('btn-bot-resume-no').onclick = () => {
+    modal.classList.add('hidden')
+    botPositions=[]; botHasLong=false; botPnl=0; botTrades=0; botWins=0; botLogs=[]
+    document.getElementById('bot-log').innerHTML=''
+    _doStartBot(false) // เริ่มใหม่
+  }
+}
+
+function _doStartBot(resume){
+  botRunning=true; botWasBelow=false; botWasAbove=false
+  if(!resume){
+    botPositions=[]
+    botHasLong=false
+  } else {
+    // รันต่อ — คงค่า botPositions และ botHasLong เดิม
+    botHasLong = botPositions.filter(p=>!p.closed).length > 0
+  }
+  const coin=document.getElementById('bot-coin').value
+  addLog('info', resume ? `Bot รันต่อ — ${coin} | ${botPositions.filter(p=>!p.closed).length} ไม้ค้างอยู่` : `Bot เริ่มใหม่ — ${coin} | Period:${document.getElementById('bot-period').value} | Std:${document.getElementById('bot-std').value}`)
   document.getElementById('bot-status').className='bot-status on'
   document.getElementById('bot-status-txt').textContent='กำลังทำงาน'
   document.getElementById('bot-btn').innerHTML='<button class="btn-bot-stop" onclick="stopBot()">■ หยุด Bot</button>'
@@ -1797,6 +1831,39 @@ setInterval(()=>{
   }
 },500)
 </script>
+
+  <!-- Bot Resume Modal -->
+  <div class="overlay hidden" id="bot-resume-modal" style="z-index:3000">
+    <div class="overlay-card" style="max-width:380px">
+      <div style="font-size:32px;margin-bottom:12px">🤖</div>
+      <div class="overlay-title">มี Bot ค้างอยู่</div>
+      <div class="overlay-sub">พบ positions ที่ยังไม่ปิด ต้องการรันต่อไหม?</div>
+      <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:20px;text-align:left">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">เหรียญ</div>
+            <div style="font-size:13px;font-family:var(--font-mono);color:var(--accent)" id="bot-resume-coin">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">ไม้ค้างอยู่</div>
+            <div style="font-size:13px;font-family:var(--font-mono)" id="bot-resume-pos">--</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">P&L สะสม</div>
+            <div style="font-size:13px;font-family:var(--font-mono)" id="bot-resume-pnl">--</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="btn-submit" id="btn-bot-resume-yes" style="background:linear-gradient(135deg,var(--accent),#9f7aea)">
+          <span class="btn-text">▶ รันต่อเลย</span>
+        </button>
+        <button class="btn-submit" id="btn-bot-resume-no" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2)">
+          <span class="btn-text">🔄 เริ่มใหม่</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Resume Modal -->
   <div class="overlay hidden" id="resume-modal" style="z-index:3000">
