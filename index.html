@@ -1372,14 +1372,15 @@ function drawChart() {
   const gW=W-PL-PR, gH=H-PT-PB
   const n=hist.length
 
-  // Build OHLC — use real kline data only, no random estimation
+  // Build OHLC — use real data if available, else estimate
   const candles = hist.map((h,i) => {
-    const prev = hist[i-1]?.close || hist[i-1]?.v || h.v
-    const o = h.open  || prev
-    const c = h.close || h.v
-    const hi = h.high  || Math.max(o, c)
-    const lo = h.low   || Math.min(o, c)
-    return { open:o, high:hi, low:lo, close:c }
+    const prev = hist[i-1]?.v || h.v
+    return {
+      open:  h.open  || prev,
+      high:  h.high  || Math.max(h.open||prev, h.v) * (1+Math.random()*0.002),
+      low:   h.low   || Math.min(h.open||prev, h.v) * (1-Math.random()*0.002),
+      close: h.close || h.v,
+    }
   })
 
   // Min/Max across OHLC + BB
@@ -1720,7 +1721,19 @@ function saveState() {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(getSaveKey())
+    // ลองโหลดจาก key ใหม่ก่อน
+    let raw = localStorage.getItem(getSaveKey())
+    // ถ้าไม่มี ลอง migrate จาก key เก่า (ไม่มี _sim/_real)
+    if (!raw) {
+      const email = document.getElementById('user-email')?.textContent || 'guest'
+      const oldKey = 'ct_state_' + email.replace(/[^a-z0-9]/gi,'_')
+      raw = localStorage.getItem(oldKey)
+      if (raw) {
+        // ย้ายข้อมูลเก่ามาใส่ key ใหม่ แล้วลบอันเก่า
+        localStorage.setItem(getSaveKey(), raw)
+        localStorage.removeItem(oldKey)
+      }
+    }
     if (!raw) return null
     return JSON.parse(raw)
   } catch(e) { return null }
