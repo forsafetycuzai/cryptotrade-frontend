@@ -1459,7 +1459,8 @@ function drawChart() {
   // B/S markers
   tradeHistory.forEach(t=>{
     if(t.coin!==currentCoin) return
-    const idx=hist.reduce((best,h,i)=>Math.abs(h.t-t.time.getTime())<Math.abs(hist[best].t-t.time.getTime())?i:best,0)
+    const tTime = t.time instanceof Date ? t.time : new Date(t.time)
+    const idx=hist.reduce((best,h,i)=>Math.abs(h.t-tTime.getTime())<Math.abs(hist[best].t-tTime.getTime())?i:best,0)
     const x=xC(idx)
     if(t.mode==='buy'){
       const y=yS(candles[idx].low)-4
@@ -1688,9 +1689,10 @@ setInterval(()=>{if(botRunning) updateBBVals()},5000)
 
 // ===== SAVE / LOAD STATE =====
 function getSaveKey() {
-  // แยก key ตาม user email กัน
+  // แยก key ตาม email + mode (sim/real) เพื่อไม่ให้ข้อมูลปนกัน
   const email = document.getElementById('user-email')?.textContent || 'guest'
-  return 'ct_state_' + email.replace(/[^a-z0-9]/gi,'_')
+  const mode = tradeModeSim ? 'sim' : 'real'
+  return 'ct_state_' + email.replace(/[^a-z0-9]/gi,'_') + '_' + mode
 }
 
 function saveState() {
@@ -1704,7 +1706,8 @@ function saveState() {
       botAmt:      document.getElementById('bot-amt')?.value || '',
       botPeriod:   document.getElementById('bot-period')?.value || '20',
       botStd:      document.getElementById('bot-std')?.value || '2',
-      botMaxPos:   document.getElementById('bot-maxpos')?.value || '3',
+      botMaxPos:   document.getElementById('bot-max-pos')?.value || '3',
+      lastTradeSign: tradeHistory.length > 0 ? tradeHistory[0].mode : null,
       botPositions, botTrades, botWins, botPnl, botLastBuy,
       botWasBelow, botWasAbove, botLogs,
       // Current view
@@ -1784,11 +1787,11 @@ function applyState(state) {
   currentQuote = state.currentQuote || 'USDT'
   currentTF = state.currentTF || '4h'
   // restore bot config UI
-  if (state.botCoin)   { const el=document.getElementById('bot-coin');   if(el) el.value=state.botCoin }
-  if (state.botAmt)    { const el=document.getElementById('bot-amt');    if(el) el.value=state.botAmt }
-  if (state.botPeriod) { const el=document.getElementById('bot-period'); if(el) el.value=state.botPeriod }
-  if (state.botStd)    { const el=document.getElementById('bot-std');    if(el) el.value=state.botStd }
-  if (state.botMaxPos) { const el=document.getElementById('bot-maxpos');if(el) el.value=state.botMaxPos }
+  if (state.botCoin)   { const el=document.getElementById('bot-coin');    if(el) { el.value=state.botCoin; document.getElementById('bot-coin-lbl').textContent=state.botCoin } }
+  if (state.botAmt)    { const el=document.getElementById('bot-amt');     if(el) el.value=state.botAmt }
+  if (state.botPeriod) { const el=document.getElementById('bot-period');  if(el) el.value=state.botPeriod }
+  if (state.botStd)    { const el=document.getElementById('bot-std');     if(el) el.value=state.botStd }
+  if (state.botMaxPos) { const el=document.getElementById('bot-max-pos'); if(el) el.value=state.botMaxPos }
   // restore logs UI
   if (botLogs.length) {
     document.getElementById('bot-log').innerHTML = botLogs.map(l=>
