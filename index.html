@@ -1873,9 +1873,11 @@ async function fetchServerBotStatus() {
     document.getElementById('server-pnl').textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2)
     document.getElementById('server-pnl').style.color = pnl>=0 ? 'var(--green)' : 'var(--red)'
     if (data.logs && data.logs.length) {
-      document.getElementById('server-bot-log').innerHTML = data.logs.map(l=>
-        `<div class="log-item ${l.type}"><span class="log-time">${l.ts}</span><span class="log-msg">${l.msg}</span></div>`
-      ).join('')
+      document.getElementById('server-bot-log').innerHTML = data.logs.map(l=>{
+        const d = new Date(l.ts)
+        const ts = isNaN(d) ? l.ts : d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')
+        return `<div class="log-item ${l.type}"><span class="log-time">${ts}</span><span class="log-msg">${l.msg}</span></div>`
+      }).join('')
     }
   } catch(e) { document.getElementById('server-bot-status-txt').textContent = '⚠️ เชื่อมต่อไม่ได้' }
 }
