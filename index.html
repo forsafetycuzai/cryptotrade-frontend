@@ -586,10 +586,16 @@ input::placeholder{color:var(--muted2);opacity:0.6}
             <div class="bot-field"><label>Period (SMA)</label><input class="bot-input" type="number" id="bot-period" value="20" min="5" max="50" oninput="drawChart()"></div>
             <div class="bot-field"><label>StdDev</label><input class="bot-input" type="number" id="bot-std" value="2" min="1" max="4" step="0.5" oninput="drawChart()"></div>
           </div>
-          <div class="bot-field"><label>เหรียญที่ Bot เทรด</label>
-            <select class="bot-input" id="bot-coin" onchange="document.getElementById('bot-coin-lbl').textContent=this.value">
-              <option>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>XRP</option><option>DOGE</option>
-            </select>
+          <div class="bot-field"><label>คู่เทรดของ Bot</label>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center">
+              <select class="bot-input" id="bot-coin" onchange="document.getElementById('bot-coin-lbl').textContent=this.value;botOnCoinChange()">
+                <option>BTC</option><option>ETH</option><option selected>BNB</option><option>SOL</option><option>XRP</option><option>DOGE</option>
+              </select>
+              <span style="color:var(--muted2);font-size:13px;font-weight:600">/</span>
+              <select class="bot-input" id="bot-quote" onchange="botQuote=this.value">
+                <option>USDT</option><option>FDUSD</option><option>USDC</option><option>BTC</option><option>ETH</option><option>BNB</option>
+              </select>
+            </div>
           </div>
           <div class="bot-field"><label>จำนวนต่อครั้ง (<span id="bot-coin-lbl">BTC</span>)</label>
             <input class="bot-input" type="number" id="bot-amt" value="0.001" min="0" step="any" placeholder="เช่น 0.001">
@@ -771,6 +777,15 @@ let botPositions=[] // track each buy position
 let botTrades=0, botWins=0, botPnl=0, botLastBuy=0
 let botWasBelow=false, botWasAbove=false, botHasLong=false
 let botTF='4h', botLogs=[]
+let botQuote='USDT' // quote ของ Bot — แยกจาก chart (currentQuote)
+
+// เรียกตอนเปลี่ยน bot-coin: โหลด history ด้วย bot quote
+function botOnCoinChange() {
+  const coin  = document.getElementById('bot-coin').value
+  const quote = document.getElementById('bot-quote').value
+  document.getElementById('bot-coin-lbl').textContent = coin
+  fetchHistoryForBot(coin, quote)
+}
 let priceInterval=null
 
 // คู่เทรด — โหลดจาก Binance API อัตโนมัติ
@@ -994,6 +1009,22 @@ function setCoin(c) { setPair(c, currentQuote) }
 function setQuote(q) { setPair(currentCoin, q) }
 
 // ===== FETCH =====
+async function fetchHistoryForBot(coin, quote) {
+  // โหลด klines สำหรับ bot coin+quote โดยเฉพาะ (ไม่ยุ่งกับ chart)
+  try {
+    const sym = coin + quote
+    const url = tradeModeSim
+      ? `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${botTF||'4h'}&limit=100`
+      : `${BACKEND_URL}/klines?symbol=${sym}&interval=${botTF||'4h'}&limit=100`
+    const data = await fetch(url).then(r=>r.json())
+    if (!Array.isArray(data)) return
+    priceHistory[coin] = data.map(k=>({t:k[0],v:parseFloat(k[4]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4])}))
+    if (priceHistory[coin].length > 0) {
+      prices[coin] = priceHistory[coin][priceHistory[coin].length-1].close
+    }
+  } catch(e) {}
+}
+
 async function fetchPrices() {
   try {
     let data
@@ -1001,6 +1032,10 @@ async function fetchPrices() {
     // ถ้า dropdown เปิดอยู่ ดึง tab filter ด้วย แต่ cap ที่ 20 คู่เท่านั้น
     const currentSym = currentCoin + currentQuote
     const symSet = new Set([currentSym])
+    // ✅ เพิ่ม bot coin+botQuote เสมอ เพื่อให้ราคา bot ไม่หยุดอัปเดตแม้ดูกราฟตัวอื่น
+    const botCoinVal = document.getElementById('bot-coin')?.value
+    const botQuoteVal = document.getElementById('bot-quote')?.value || botQuote
+    if (botCoinVal && botQuoteVal) symSet.add(botCoinVal + botQuoteVal)
     if (pairDropdownOpen) {
       const filterPairs = activeQuoteFilter === 'ALL'
         ? PAIRS.slice(0, 20)
@@ -1212,6 +1247,8 @@ function calcTotal() {
   }
 }
 // ===== REAL ACCOUNT =====
+const STABLECOINS = new Set(['USDT','USDC','FDUSD','BUSD','TUSD','DAI'])
+
 async function fetchRealAccount(retry=0) {
   if (tradeModeSim) return
   if (retry === 0) toast('⏳ กำลังโหลดยอดจาก Binance...', 'success')
@@ -1219,30 +1256,54 @@ async function fetchRealAccount(retry=0) {
     const res = await fetch(`${BACKEND_URL}/account`)
     if (!res.ok) throw new Error('HTTP '+res.status)
     const raw = await res.json()
-    // รองรับทั้ง {balances:[]} และ {data:{balances:[]}}
     const account = raw.data || raw
     const balances = account.balances
-    if (balances && Array.isArray(balances)) {
-      const usdtBal  = balances.find(b=>b.asset==='USDT')
-      const usdcBal  = balances.find(b=>b.asset==='USDC')
-      const fdusdBal = balances.find(b=>b.asset==='FDUSD')
-      if (currentQuote==='USDC') {
-        cash = parseFloat(usdcBal?.free||0)
-      } else if (currentQuote==='FDUSD') {
-        cash = parseFloat(fdusdBal?.free||0)
-      } else {
-        cash = parseFloat(usdtBal?.free||0) + parseFloat(usdcBal?.free||0)
-      }
-      holdings = {}
-      balances.forEach(b => {
-        const amt = parseFloat(b.free) + parseFloat(b.locked)
-        if (amt > 0.000001 && COINS[b.asset]) holdings[b.asset] = amt
-      })
-      updateUI()
-      toast('✅ โหลดยอดจาก Binance แล้ว', 'success')
-    } else if (account.code) {
-      toast('❌ Binance Error: ' + account.msg, 'error')
+    if (!balances || !Array.isArray(balances)) {
+      if (account.code) toast('❌ Binance: ' + account.msg, 'error')
+      return
     }
+
+    // ✅ cash = รวม stablecoin ทุกตัว (USDT + USDC + FDUSD + ...)
+    cash = balances
+      .filter(b => STABLECOINS.has(b.asset))
+      .reduce((s, b) => s + parseFloat(b.free||0) + parseFloat(b.locked||0), 0)
+
+    // ✅ holdings = ทุกเหรียญที่มียอด ไม่กรองด้วย COINS
+    const cryptoBalances = balances.filter(b => {
+      const amt = parseFloat(b.free||0) + parseFloat(b.locked||0)
+      return amt > 0.000001 && !STABLECOINS.has(b.asset)
+    })
+
+    // ดึงราคา USDT ของทุกเหรียญที่ถือพร้อมกัน
+    if (cryptoBalances.length > 0) {
+      try {
+        const syms = cryptoBalances.map(b => b.asset + 'USDT')
+        const url = syms.length === 1
+          ? `https://api.binance.com/api/v3/ticker/price?symbol=${syms[0]}`
+          : `https://api.binance.com/api/v3/ticker/price?symbols=[${syms.map(s=>`"${s}"`).join(',')}]`
+        const pd = await fetch(url).then(r => r.json())
+        const arr = Array.isArray(pd) ? pd : (pd.symbol ? [pd] : [])
+        arr.forEach(p => {
+          const coin = p.symbol.replace(/USDT$/, '')
+          const px = parseFloat(p.price)
+          prices[coin] = px
+          if (!COINS[coin]) COINS[coin] = { name: coin, color: COIN_COLORS[coin]||'#718096', baseUSDT: px }
+          else COINS[coin].baseUSDT = px
+        })
+      } catch(e) { console.warn('price fetch for holdings failed', e) }
+    }
+
+    // อัปเดต holdings หลังได้ราคา
+    holdings = {}
+    cryptoBalances.forEach(b => {
+      const amt = parseFloat(b.free||0) + parseFloat(b.locked||0)
+      holdings[b.asset] = amt
+      if (!COINS[b.asset]) COINS[b.asset] = { name: b.asset, color: COIN_COLORS[b.asset]||'#718096', baseUSDT: 0 }
+      if (!prices[b.asset]) prices[b.asset] = 0
+    })
+
+    updateUI()
+    toast('✅ โหลดยอดจาก Binance แล้ว', 'success')
   } catch(e) {
     if (retry < 5) {
       const wait = (retry+1) * 3000
@@ -1763,7 +1824,7 @@ async function fetchServerBotStatus() {
 
 async function startServerBot() {
   const coin   = document.getElementById('bot-coin').value
-  const quote  = currentQuote
+  const quote  = document.getElementById('bot-quote').value || botQuote
   const amount = document.getElementById('bot-amt').value
   const period = document.getElementById('bot-period').value
   const std    = document.getElementById('bot-std').value
@@ -1811,6 +1872,7 @@ function saveState() {
       // Bot config & state
       botRunning,
       botCoin:     document.getElementById('bot-coin')?.value || 'BTC',
+      botQuote:    document.getElementById('bot-quote')?.value || botQuote,
       botAmt:      document.getElementById('bot-amt')?.value || '',
       botPeriod:   document.getElementById('bot-period')?.value || '20',
       botStd:      document.getElementById('bot-std')?.value || '2',
@@ -1908,6 +1970,7 @@ function applyState(state) {
   currentTF = state.currentTF || '4h'
   // restore bot config UI
   if (state.botCoin)   { const el=document.getElementById('bot-coin');    if(el) { el.value=state.botCoin; document.getElementById('bot-coin-lbl').textContent=state.botCoin } }
+  if (state.botQuote)  { const el=document.getElementById('bot-quote');   if(el) { el.value=state.botQuote; botQuote=state.botQuote } }
   if (state.botAmt)    { const el=document.getElementById('bot-amt');     if(el) el.value=state.botAmt }
   if (state.botPeriod) { const el=document.getElementById('bot-period');  if(el) el.value=state.botPeriod }
   if (state.botStd)    { const el=document.getElementById('bot-std');     if(el) el.value=state.botStd }
