@@ -607,7 +607,8 @@ input::placeholder{color:var(--muted2);opacity:0.6}
             <input class="bot-input" type="number" id="bot-amt" value="0.001" min="0" step="any" placeholder="เช่น 0.001">
           </div>
           <div class="bot-field"><label>จำนวนไม้สูงสุด <span style="color:var(--muted2);font-size:10px">(ซื้อได้กี่ครั้ง)</span></label>
-            <input class="bot-input" type="number" id="bot-max-pos" value="3" min="1" max="20" step="1" placeholder="เช่น 3">
+            <input class="bot-input" type="number" id="bot-max-pos" value="3" min="1" max="20" step="1" placeholder="เช่น 3"
+              oninput="document.getElementById('bot-pos-count').textContent=(botPositions.filter(p=>!p.closed).length)+' / '+this.value">
           </div>
           <div style="background:var(--surface2);border-radius:7px;padding:8px 10px;margin-bottom:10px;font-family:var(--font-mono);font-size:11px;display:flex;justify-content:space-between">
             <span style="color:var(--muted2)">ไม้ที่เปิดอยู่</span>
