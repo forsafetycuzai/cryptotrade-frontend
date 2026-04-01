@@ -786,6 +786,43 @@ let botWasBelow=false, botWasAbove=false, botHasLong=false
 let botTF='4h', botLogs=[]
 let botQuote='USDT' // quote ของ Bot — แยกจาก chart (currentQuote)
 
+// restore bot config จาก localStorage (ทำงานทั้งโหมดจำลองและโหมดจริง)
+function restoreBotConfig() {
+  try {
+    const key = getSaveKey()
+    const raw = localStorage.getItem(key)
+    if (!raw) {
+      // ไม่มี save → ใช้ค่า default แล้ว selectBotCoin เลย
+      selectBotCoin(getBotCoin())
+      return
+    }
+    const state = JSON.parse(raw)
+    // restore coin ก่อน
+    const coin = state.botCoin || 'BNB'
+    const quote = state.botQuote || 'USDT'
+    const el = document.getElementById('bot-coin-input')
+    if (el) el.value = coin
+    document.getElementById('bot-coin-lbl').textContent = coin
+    // selectBotCoin จะ populate quote options จากนั้น override ด้วย savedQuote
+    selectBotCoin(coin)
+    const qEl = document.getElementById('bot-quote')
+    if (qEl) { qEl.value = quote; botQuote = quote }
+    // restore fields อื่น
+    if (state.botAmt)    { const e=document.getElementById('bot-amt');     if(e) e.value=state.botAmt }
+    if (state.botPeriod) { const e=document.getElementById('bot-period');  if(e) e.value=state.botPeriod }
+    if (state.botStd)    { const e=document.getElementById('bot-std');     if(e) e.value=state.botStd }
+    if (state.botMaxPos) {
+      const e=document.getElementById('bot-max-pos')
+      if(e) {
+        e.value = state.botMaxPos
+        document.getElementById('bot-pos-count').textContent = '0 / '+state.botMaxPos
+      }
+    }
+  } catch(e) {
+    selectBotCoin(getBotCoin())
+  }
+}
+
 // อ่านค่า bot coin จาก input
 function getBotCoin() {
   return (document.getElementById('bot-coin-input')?.value || 'BNB').toUpperCase().trim()
@@ -956,7 +993,7 @@ function confirmMethod() {
   // Start everything — โหลด pairs จาก Binance ก่อน
   loadAllPairs().then(() => {
     renderCoinBtns()
-    selectBotCoin(getBotCoin()) // อัปเดต bot-quote options ให้ตรงกับ coin ที่เลือก
+    restoreBotConfig() // โหลด bot settings จาก localStorage ก่อน แล้วค่อย selectBotCoin
     fetchPrices()
     if (priceInterval) clearInterval(priceInterval)
     priceInterval = setInterval(fetchPrices, 15000) // 15s เพื่อไม่ให้ถูก Binance ban
