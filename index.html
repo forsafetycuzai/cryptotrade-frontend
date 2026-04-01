@@ -588,11 +588,17 @@ input::placeholder{color:var(--muted2);opacity:0.6}
           </div>
           <div class="bot-field"><label>คู่เทรดของ Bot</label>
             <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center">
-              <select class="bot-input" id="bot-coin" onchange="document.getElementById('bot-coin-lbl').textContent=this.value;botOnCoinChange()">
-                <option>BTC</option><option>ETH</option><option selected>BNB</option><option>SOL</option><option>XRP</option><option>DOGE</option>
-              </select>
+              <div style="position:relative">
+                <input class="bot-input" id="bot-coin-input" placeholder="เช่น BNB" autocomplete="off"
+                  style="width:100%;text-transform:uppercase"
+                  oninput="filterBotCoinList(this.value)"
+                  onfocus="showBotCoinDrop()"
+                  onblur="setTimeout(hideBotCoinDrop,200)"
+                  value="BNB">
+                <div id="bot-coin-drop" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;max-height:160px;overflow-y:auto;margin-top:3px"></div>
+              </div>
               <span style="color:var(--muted2);font-size:13px;font-weight:600">/</span>
-              <select class="bot-input" id="bot-quote" onchange="botQuote=this.value">
+              <select class="bot-input" id="bot-quote" onchange="botQuote=this.value;botOnCoinChange()">
                 <option>USDT</option><option>FDUSD</option><option>USDC</option><option>BTC</option><option>ETH</option><option>BNB</option>
               </select>
             </div>
@@ -779,12 +785,62 @@ let botWasBelow=false, botWasAbove=false, botHasLong=false
 let botTF='4h', botLogs=[]
 let botQuote='USDT' // quote ของ Bot — แยกจาก chart (currentQuote)
 
-// เรียกตอนเปลี่ยน bot-coin: โหลด history ด้วย bot quote
+// อ่านค่า bot coin จาก input
+function getBotCoin() {
+  return (document.getElementById('bot-coin-input')?.value || 'BNB').toUpperCase().trim()
+}
+
+// เรียกตอนเปลี่ยน bot-coin หรือ bot-quote
 function botOnCoinChange() {
-  const coin  = document.getElementById('bot-coin').value
+  const coin  = getBotCoin()
   const quote = document.getElementById('bot-quote').value
   document.getElementById('bot-coin-lbl').textContent = coin
   fetchHistoryForBot(coin, quote)
+}
+
+// ─── Bot Coin Searchable Dropdown ───────────────────────────
+function showBotCoinDrop() {
+  filterBotCoinList(document.getElementById('bot-coin-input').value)
+  document.getElementById('bot-coin-drop').style.display = 'block'
+}
+function hideBotCoinDrop() {
+  document.getElementById('bot-coin-drop').style.display = 'none'
+}
+function filterBotCoinList(q) {
+  const val = q.toUpperCase().trim()
+  const quote = document.getElementById('bot-quote')?.value || 'USDT'
+  // หาเหรียญที่มีคู่กับ quote ที่เลือก ถ้าไม่มีก็แสดงทั้งหมด
+  let list = PAIRS.filter(p => p.quote === quote && p.coin.includes(val))
+  if (!list.length) list = PAIRS.filter(p => p.coin.includes(val)).slice(0, 30)
+  else list = list.slice(0, 30)
+  const drop = document.getElementById('bot-coin-drop')
+  if (!list.length) { drop.style.display = 'none'; return }
+  drop.style.display = 'block'
+  drop.innerHTML = list.map(p =>
+    `<div onclick="selectBotCoin('${p.coin}')"
+      style="padding:7px 12px;cursor:pointer;font-family:var(--font-mono);font-size:13px;
+             display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.04)"
+      onmouseover="this.style.background='rgba(0,255,170,0.07)'"
+      onmouseout="this.style.background=''"
+    >
+      <span style="color:${p.color||'#718096'};font-weight:700">${p.coin}</span>
+      <span style="color:var(--muted2);font-size:11px">/${p.quote}</span>
+    </div>`
+  ).join('')
+}
+function selectBotCoin(coin) {
+  document.getElementById('bot-coin-input').value = coin
+  document.getElementById('bot-coin-lbl').textContent = coin
+  hideBotCoinDrop()
+  // อัปเดต bot-quote ให้มีแค่ quote ที่คู่นี้รองรับ
+  const availableQuotes = [...new Set(PAIRS.filter(p=>p.coin===coin).map(p=>p.quote))]
+  const quoteEl = document.getElementById('bot-quote')
+  const current = quoteEl.value
+  quoteEl.innerHTML = availableQuotes.map(q =>
+    `<option${q===current?' selected':''}>${q}</option>`
+  ).join('')
+  botQuote = quoteEl.value
+  botOnCoinChange()
 }
 let priceInterval=null
 
@@ -899,6 +955,7 @@ function confirmMethod() {
   // Start everything — โหลด pairs จาก Binance ก่อน
   loadAllPairs().then(() => {
     renderCoinBtns()
+    selectBotCoin(getBotCoin()) // อัปเดต bot-quote options ให้ตรงกับ coin ที่เลือก
     fetchPrices()
     if (priceInterval) clearInterval(priceInterval)
     priceInterval = setInterval(fetchPrices, 15000) // 15s เพื่อไม่ให้ถูก Binance ban
@@ -1033,7 +1090,7 @@ async function fetchPrices() {
     const currentSym = currentCoin + currentQuote
     const symSet = new Set([currentSym])
     // ✅ เพิ่ม bot coin+botQuote เสมอ เพื่อให้ราคา bot ไม่หยุดอัปเดตแม้ดูกราฟตัวอื่น
-    const botCoinVal = document.getElementById('bot-coin')?.value
+    const botCoinVal = getBotCoin()
     const botQuoteVal = document.getElementById('bot-quote')?.value || botQuote
     if (botCoinVal && botQuoteVal) symSet.add(botCoinVal + botQuoteVal)
     if (pairDropdownOpen) {
@@ -1636,7 +1693,7 @@ function addLog(type,msg){
   document.getElementById('bot-log').innerHTML=botLogs.map(l=>`<div class="log-item ${l.type}"><span class="log-time">${l.ts}</span><span class="log-msg">${l.msg}</span></div>`).join('')
 }
 function runBot(){
-  const coin=document.getElementById('bot-coin').value
+  const coin=getBotCoin()
   const period=parseInt(document.getElementById('bot-period').value)||20
   const mult=parseFloat(document.getElementById('bot-std').value)||2
   const amount=parseFloat(document.getElementById('bot-amt').value)
@@ -1730,7 +1787,7 @@ function startBot(){
   const amount=parseFloat(document.getElementById('bot-amt').value)
   if(!amount||amount<=0){toast('กรุณากรอกจำนวน','error');return}
   // เช็คว่ามี positions ที่ค้างอยู่ไหม ถ้ามีให้ถามก่อน
-  const coin=document.getElementById('bot-coin').value
+  const coin=getBotCoin()
   const savedPositions = botPositions.filter(p=>p.coin===coin&&!p.closed)
   if(savedPositions.length>0){
     showBotResumeModal(coin, savedPositions.length)
@@ -1767,7 +1824,7 @@ function _doStartBot(resume){
     // รันต่อ — คงค่า botPositions และ botHasLong เดิม
     botHasLong = botPositions.filter(p=>!p.closed).length > 0
   }
-  const coin=document.getElementById('bot-coin').value
+  const coin=getBotCoin()
   addLog('info', resume ? `Bot รันต่อ — ${coin} | ${botPositions.filter(p=>!p.closed).length} ไม้ค้างอยู่` : `Bot เริ่มใหม่ — ${coin} | Period:${document.getElementById('bot-period').value} | Std:${document.getElementById('bot-std').value}`)
   document.getElementById('bot-status').className='bot-status on'
   document.getElementById('bot-status-txt').textContent='กำลังทำงาน'
@@ -1823,7 +1880,7 @@ async function fetchServerBotStatus() {
 }
 
 async function startServerBot() {
-  const coin   = document.getElementById('bot-coin').value
+  const coin   = getBotCoin()
   const quote  = document.getElementById('bot-quote').value || botQuote
   const amount = document.getElementById('bot-amt').value
   const period = document.getElementById('bot-period').value
@@ -1871,7 +1928,7 @@ function saveState() {
       cash, holdings, tradeHistory: tradeHistory.slice(0,100), pendingOrders,
       // Bot config & state
       botRunning,
-      botCoin:     document.getElementById('bot-coin')?.value || 'BTC',
+      botCoin:     document.getElementById('bot-coin-input')?.value.toUpperCase() || 'BNB',
       botQuote:    document.getElementById('bot-quote')?.value || botQuote,
       botAmt:      document.getElementById('bot-amt')?.value || '',
       botPeriod:   document.getElementById('bot-period')?.value || '20',
@@ -1969,7 +2026,7 @@ function applyState(state) {
   currentQuote = state.currentQuote || 'USDT'
   currentTF = state.currentTF || '4h'
   // restore bot config UI
-  if (state.botCoin)   { const el=document.getElementById('bot-coin');    if(el) { el.value=state.botCoin; document.getElementById('bot-coin-lbl').textContent=state.botCoin } }
+  if (state.botCoin)   { const el=document.getElementById('bot-coin-input'); if(el) { el.value=state.botCoin; document.getElementById('bot-coin-lbl').textContent=state.botCoin } }
   if (state.botQuote)  { const el=document.getElementById('bot-quote');   if(el) { el.value=state.botQuote; botQuote=state.botQuote } }
   if (state.botAmt)    { const el=document.getElementById('bot-amt');     if(el) el.value=state.botAmt }
   if (state.botPeriod) { const el=document.getElementById('bot-period');  if(el) el.value=state.botPeriod }
