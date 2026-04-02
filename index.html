@@ -1774,6 +1774,8 @@ function runBot(){
             botLastBuy=price
             tradeHistory.unshift({mode:'buy',coin,amount,price,total,time:new Date()})
             addLog('buy',`BUY ไม้ ${openPos+1}/${maxPos} — ${amount} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} ▼ Lower Band`)
+            const _op = botPositions.filter(p=>p.coin===coin&&!p.closed).length
+            document.getElementById('bot-pos-count').textContent = _op+' / '+maxPos
             renderHistory();drawChart()
           }
         })
@@ -1786,6 +1788,8 @@ function runBot(){
         tradeHistory.unshift({mode:'buy',coin,amount,price,total,time:new Date()})
         addLog('buy',`BUY ไม้ ${openPos+1}/${maxPos} — ${amount} ${coin} @ $${price.toLocaleString('en-US',{maximumFractionDigits:4})} ▼ Lower Band`)
         toast(`🤖 Bot ซื้อไม้ ${openPos+1}/${maxPos} ${coin} @ $${price.toLocaleString()}`,'success')
+        const _op = botPositions.filter(p=>p.coin===coin&&!p.closed).length
+        document.getElementById('bot-pos-count').textContent = _op+' / '+maxPos
         updateUI();renderHistory();drawChart()
       }
     } else addLog('info','สัญญาณซื้อ แต่เงินไม่พอ')
@@ -2103,6 +2107,8 @@ function applyState(state) {
     // reset was-state เสมอก่อน restart — ป้องกัน botWasBelow=true ติดมาจาก save
     botWasBelow = false
     botWasAbove = false
+    // set botHasLong จาก positions ที่ restore มา (ไม่ใช่ hardcode false)
+    botHasLong = botPositions.filter(p => !p.closed).length > 0
     const _botCoin  = document.getElementById('bot-coin-input')?.value.toUpperCase() || 'BNB'
     const _botQuote = document.getElementById('bot-quote')?.value || botQuote
     // โหลด history ใหม่ด้วย botTF ที่ถูกต้องก่อนรัน bot
