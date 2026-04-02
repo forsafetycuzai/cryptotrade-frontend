@@ -797,7 +797,16 @@ function restoreBotConfig() {
       return
     }
     const state = JSON.parse(raw)
-    // restore coin ก่อน
+    // restore botTF ก่อน เพราะ selectBotCoin → fetchHistoryForBot ใช้ botTF
+    if (state.botTF) {
+      botTF = state.botTF
+      document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active',
+        b.textContent.trim().toLowerCase() === botTF.toLowerCase() ||
+        (botTF==='1d' && b.textContent.trim()==='1D') ||
+        (botTF==='1w' && b.textContent.trim()==='1W')
+      ))
+    }
+    // restore coin
     const coin = state.botCoin || 'BNB'
     const quote = state.botQuote || 'USDT'
     const el = document.getElementById('bot-coin-input')
@@ -817,15 +826,6 @@ function restoreBotConfig() {
         e.value = state.botMaxPos
         document.getElementById('bot-pos-count').textContent = '0 / '+state.botMaxPos
       }
-    }
-    // restore botTF
-    if (state.botTF) {
-      botTF = state.botTF
-      document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active',
-        b.textContent.trim().toLowerCase() === botTF.toLowerCase() ||
-        (botTF==='1d' && b.textContent.trim()==='1D') ||
-        (botTF==='1w' && b.textContent.trim()==='1W')
-      ))
     }
   } catch(e) {
     selectBotCoin(getBotCoin())
@@ -2100,15 +2100,22 @@ function applyState(state) {
   toast('โหลดข้อมูลเดิมสำเร็จ ✅', 'success')
   // รีสตาร์ท bot ถ้ามันรันอยู่ก่อนหน้า
   if (state.botRunning) {
-    setTimeout(() => {
+    // reset was-state เสมอก่อน restart — ป้องกัน botWasBelow=true ติดมาจาก save
+    botWasBelow = false
+    botWasAbove = false
+    const _botCoin  = document.getElementById('bot-coin-input')?.value.toUpperCase() || 'BNB'
+    const _botQuote = document.getElementById('bot-quote')?.value || botQuote
+    // โหลด history ใหม่ด้วย botTF ที่ถูกต้องก่อนรัน bot
+    fetchHistoryForBot(_botCoin, _botQuote).then(() => {
       addLog('info', 'Bot รีสตาร์ทอัตโนมัติหลังจากระบบกลับมา')
       botRunning = true
       document.getElementById('bot-status').className = 'bot-status on'
       document.getElementById('bot-status-txt').textContent = 'กำลังทำงาน'
       document.getElementById('bot-btn').innerHTML = '<button class="btn-bot-stop" onclick="stopBot()">■ หยุด Bot</button>'
+      if (botInterval) clearInterval(botInterval)
       botInterval = setInterval(runBot, 5000)
       runBot()
-    }, 1000)
+    })
   }
 }
 
