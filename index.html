@@ -818,6 +818,15 @@ function restoreBotConfig() {
         document.getElementById('bot-pos-count').textContent = '0 / '+state.botMaxPos
       }
     }
+    // restore botTF
+    if (state.botTF) {
+      botTF = state.botTF
+      document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active',
+        b.textContent.trim().toLowerCase() === botTF.toLowerCase() ||
+        (botTF==='1d' && b.textContent.trim()==='1D') ||
+        (botTF==='1w' && b.textContent.trim()==='1W')
+      ))
+    }
   } catch(e) {
     selectBotCoin(getBotCoin())
   }
