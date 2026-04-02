@@ -1982,7 +1982,7 @@ function saveState() {
       botMaxPos:   document.getElementById('bot-max-pos')?.value || '3',
       lastTradeSign: tradeHistory.length > 0 ? tradeHistory[0].mode : null,
       botPositions, botTrades, botWins, botPnl, botLastBuy,
-      botWasBelow, botWasAbove, botLogs,
+      botWasBelow, botWasAbove, botLogs, botTF,
       // Current view
       currentCoin, currentQuote, currentTF,
       tradeMethod, tradeModeSim,
@@ -2071,6 +2071,8 @@ function applyState(state) {
   currentCoin = state.currentCoin || 'BTC'
   currentQuote = state.currentQuote || 'USDT'
   currentTF = state.currentTF || '4h'
+  botTF = state.botTF || '4h'
+  document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===botTF.toLowerCase()||(botTF==='1d'&&b.textContent.trim()==='1D')||(botTF==='1w'&&b.textContent.trim()==='1W')))
   // restore bot config UI
   if (state.botCoin)   { const el=document.getElementById('bot-coin-input'); if(el) { el.value=state.botCoin; document.getElementById('bot-coin-lbl').textContent=state.botCoin } }
   if (state.botQuote)  { const el=document.getElementById('bot-quote');   if(el) { el.value=state.botQuote; botQuote=state.botQuote } }
