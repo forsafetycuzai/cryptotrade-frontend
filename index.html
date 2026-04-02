@@ -1233,12 +1233,17 @@ async function fetchHistory(coin) {
 
 // ===== TF =====
 function setTF(tf) {
-  currentTF = tf; botTF = tf
+  currentTF = tf
+  if (!botRunning) botTF = tf  // lock botTF เมื่อ bot รันอยู่
   document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
-  document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  // sync bot-tf-btn เฉพาะตอน bot ไม่ได้รัน
+  if (!botRunning) {
+    document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
+  }
   fetchHistory(currentCoin).then(()=>{updateUI();drawChart()})
 }
 function setBotTF(tf) {
+  if (botRunning) { toast('หยุด Bot ก่อนเปลี่ยน Timeframe', 'error'); return }
   botTF = tf; currentTF = tf
   document.querySelectorAll('.bot-tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
   document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase()===tf.toLowerCase()||(tf==='1d'&&b.textContent.trim()==='1D')||(tf==='1w'&&b.textContent.trim()==='1W')))
