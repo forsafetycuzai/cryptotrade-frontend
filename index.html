@@ -1946,11 +1946,18 @@ async function fetchServerBotStatus() {
     document.getElementById('server-bot-status-txt').style.color = running ? 'var(--green)' : 'var(--muted2)'
     document.getElementById('server-bot-start-btn').style.display = running ? 'none' : 'block'
     document.getElementById('server-bot-stop-btn').style.display = running ? 'block' : 'none'
-    document.getElementById('server-pos-count').textContent = data.openPos || 0
+    const openPos = data.openPos || 0
+    const maxPos  = document.getElementById('bot-max-pos')?.value || 3
+    document.getElementById('server-pos-count').textContent = openPos
+    document.getElementById('bot-pos-count').textContent = openPos + ' / ' + maxPos
+    document.getElementById('b-trades').textContent = data.trades || 0
     document.getElementById('server-trades').textContent = data.trades || 0
     const pnl = data.pnl || 0
     document.getElementById('server-pnl').textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2)
     document.getElementById('server-pnl').style.color = pnl>=0 ? 'var(--green)' : 'var(--red)'
+    document.getElementById('b-pnl').textContent = (pnl>=0?'+':'')+' $'+pnl.toFixed(2)
+    document.getElementById('b-pnl').style.color = pnl>=0 ? 'var(--green)' : 'var(--red)'
+    document.getElementById('b-win').textContent = data.trades>0 ? Math.round(data.wins/data.trades*100)+'%' : '0%'
     if (data.logs && data.logs.length) {
       document.getElementById('server-bot-log').innerHTML = data.logs.map(l=>{
         const d = new Date(l.ts)
