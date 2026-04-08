@@ -1784,7 +1784,7 @@ function runBot(){
   updateBBVals()
   const maxPos = parseInt(document.getElementById('bot-max-pos').value)||3
   const openPos = botPositions.filter(p=>p.coin===coin&&!p.closed).length
-  document.getElementById('bot-pos-count').textContent = openPos+' / '+maxPos
+  if (serverBotMode !== 'server') document.getElementById('bot-pos-count').textContent = openPos+' / '+maxPos
 
   if(isBelow&&!botWasBelow&&openPos<maxPos){
     if(cash>=total || !tradeModeSim){
@@ -1931,6 +1931,8 @@ function setBotMode(mode) {
   document.getElementById('bot-btn-browser').style.display = mode==='browser' ? 'block' : 'none'
   document.getElementById('bot-btn-server').style.display = mode==='server' ? 'block' : 'none'
   if (mode==='server') {
+    // หยุด browser bot ถ้ารันอยู่
+    if (botRunning) { clearInterval(botInterval); botInterval=null; botRunning=false }
     fetchServerBotStatus()
     if (!serverBotPollInterval) serverBotPollInterval = setInterval(fetchServerBotStatus, 10000)
   } else {
@@ -1964,6 +1966,17 @@ async function fetchServerBotStatus() {
         const ts = isNaN(d) ? l.ts : d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')
         return `<div class="log-item ${l.type}"><span class="log-time">${ts}</span><span class="log-msg">${l.msg}</span></div>`
       }).join('')
+    }
+    // merge server trade events เข้า tradeHistory เพื่อวาด B/S markers บนกราฟ
+    if (data.tradeEvents && data.tradeEvents.length) {
+      data.tradeEvents.forEach(ev => {
+        const t = new Date(ev.time)
+        const already = tradeHistory.find(h => h._serverId && h._serverId === ev.time)
+        if (!already) {
+          tradeHistory.unshift({ mode: ev.side, coin: ev.coin, price: ev.price, amount: 0, total: 0, time: t, _serverId: ev.time })
+        }
+      })
+      drawChart()
     }
   } catch(e) { document.getElementById('server-bot-status-txt').textContent = '⚠️ เชื่อมต่อไม่ได้' }
 }
